@@ -1324,6 +1324,44 @@ function assetUrl(rel) {
   return rel;
 }
 
+/* Punch white / near-white backgrounds out of pet art (JPG has no alpha) */
+function makeTransparentPet(sourceImg, threshold) {
+  threshold = threshold == null ? 245 : threshold;
+  const w = sourceImg.naturalWidth || sourceImg.width;
+  const h = sourceImg.naturalHeight || sourceImg.height;
+  if (!w || !h) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(sourceImg, 0, 0);
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, w, h);
+  } catch (e) {
+    /* tainted canvas (CORS) — cannot process */
+    return null;
+  }
+  const d = data.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    /* pure / near white */
+    if (r >= threshold && g >= threshold && b >= threshold) {
+      d[i + 3] = 0;
+      continue;
+    }
+    /* soft edge: fade very light pixels */
+    const minc = Math.min(r, g, b);
+    const maxc = Math.max(r, g, b);
+    if (minc > 220 && maxc - minc < 25) {
+      const t = (minc - 220) / (255 - 220);
+      d[i + 3] = Math.round(d[i + 3] * (1 - t));
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 function applyTheme(theme) {
   currentTheme = theme;
   settingsState.theme = theme;
@@ -1335,11 +1373,15 @@ function applyTheme(theme) {
   const petEl = document.getElementById('pet');
   if (wall) { wall.classList.remove('has-image'); wall.style.backgroundImage = 'none'; }
   if (petEl) petEl.classList.remove('has-image');
-  if (img) img.removeAttribute('src');
+  if (img) {
+    img.onload = null;
+    img.onerror = null;
+    img.removeAttribute('src');
+  }
 
   const bust = '?v=' + Date.now();
 
-  // Wallpaper = PNG (full desktop background)
+  // Wallpaper = PNG (full desktop background) — leave as-is
   if (wall && pet.wallpaper) {
     const wUrl = assetUrl(pet.wallpaper) + bust;
     const probe = new Image();
@@ -1355,18 +1397,67 @@ function applyTheme(theme) {
     probe.src = wUrl;
   }
 
-  // Pet = JPG (corner character)
+  // Pet = JPG → strip white bg → transparent PNG (works in about:blank via fetch+blob)
   if (img && pet.pet) {
     const pUrl = assetUrl(pet.pet) + bust;
-    img.onload = function() {
-      if (!this.naturalWidth) return;
-      if (petEl) petEl.classList.add('has-image');
-    };
-    img.onerror = function() {
-      this.removeAttribute('src');
-      if (petEl) petEl.classList.remove('has-image');
-    };
-    img.src = pUrl;
+
+    function showPetFromImage(sourceImg) {
+      let out = null;
+      try { out = makeTransparentPet(sourceImg, 240); } catch (e) { out = null; }
+      img.onload = function() {
+        if (petEl) petEl.classList.add('has-image');
+      };
+      img.onerror = function() {
+        img.onerror = null;
+        img.src = pUrl;
+        if (petEl) petEl.classList.add('has-image');
+      };
+      if (out) {
+        img.src = out;
+      } else {
+        img.src = pUrl;
+        if (petEl) petEl.classList.add('has-image');
+      }
+    }
+
+    function loadViaElement() {
+      const loader = new Image();
+      loader.crossOrigin = 'anonymous';
+      loader.onload = function() {
+        if (!this.naturalWidth) return;
+        showPetFromImage(this);
+      };
+      loader.onerror = function() {
+        /* last resort: show jpg as-is */
+        img.src = pUrl;
+        img.onload = function() { if (petEl) petEl.classList.add('has-image'); };
+        img.onerror = function() { if (petEl) petEl.classList.remove('has-image'); };
+      };
+      loader.src = pUrl;
+    }
+
+    /* fetch as blob avoids canvas taint on about:blank */
+    fetch(pUrl, { mode: 'cors' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('pet fetch ' + r.status);
+        return r.blob();
+      })
+      .then(function(blob) {
+        const obj = URL.createObjectURL(blob);
+        const loader = new Image();
+        loader.onload = function() {
+          showPetFromImage(this);
+          try { URL.revokeObjectURL(obj); } catch (e) {}
+        };
+        loader.onerror = function() {
+          try { URL.revokeObjectURL(obj); } catch (e) {}
+          loadViaElement();
+        };
+        loader.src = obj;
+      })
+      .catch(function() {
+        loadViaElement();
+      });
   }
 }
 
@@ -1663,6 +1754,66 @@ function openApp(id) {
   updateDock();
 }
 
+function openGameWindow(title, path) {
+  const id = 'game-' + String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'play';
+  if (openWindows[id]) {
+    openWindows[id].classList.remove('minimized');
+    focusWindow(id);
+    updateDock();
+    return;
+  }
+  const w = 900, h = 600;
+  const win = document.createElement('div');
+  win.className = 'window';
+  win.id = 'win-' + id;
+  win.dataset.app = id;
+  const off = Object.keys(openWindows).length * 26;
+  win.style.width = w + 'px';
+  win.style.height = h + 'px';
+  win.style.left = Math.min(60 + off, window.innerWidth - w - 40) + 'px';
+  win.style.top = Math.min(40 + off, window.innerHeight - h - 110) + 'px';
+  win.innerHTML = '<div class="titlebar"><div class="title-text">' + title.replace(/</g, '&lt;') + '</div><div class="win-controls"><button class="btn-min" title="Minimize"><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></button><button class="btn-max" title="Snap / Maximize"><svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="0.5"/></svg></button><button class="btn-close" title="Close"><svg viewBox="0 0 10 10"><path d="M2 2l6 6M8 2l-6 6"/></svg></button></div><div class="snap-picker"><div class="snap-cell" data-snap="left" title="Left"></div><div class="snap-cell" data-snap="right" title="Right"></div></div></div><div class="window-body" id="body-' + id + '" style="padding:0;overflow:hidden"></div><div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div><div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div><div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div><div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>';
+  document.getElementById('windows').appendChild(win);
+  openWindows[id] = win;
+  requestAnimationFrame(() => requestAnimationFrame(() => win.classList.add('open')));
+  win.querySelector('.btn-close').onclick = (e) => { e.stopPropagation(); closeWindow(id); };
+  win.querySelector('.btn-min').onclick = (e) => { e.stopPropagation(); minimizeWindow(id); };
+  const maxBtn = win.querySelector('.btn-max');
+  const snapPicker = win.querySelector('.snap-picker');
+  let snapHide = null;
+  maxBtn.onmouseenter = () => {
+    clearTimeout(snapHide);
+    snapHide = setTimeout(() => snapPicker.classList.add('show'), 300);
+  };
+  maxBtn.onmouseleave = () => {
+    snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
+  };
+  snapPicker.onmouseenter = () => clearTimeout(snapHide);
+  snapPicker.onmouseleave = () => snapPicker.classList.remove('show');
+  maxBtn.onclick = (e) => { e.stopPropagation(); snapPicker.classList.remove('show'); toggleMaximize(id); };
+  snapPicker.querySelectorAll('[data-snap]').forEach(cell => {
+    cell.onclick = (e) => {
+      e.stopPropagation();
+      snapPicker.classList.remove('show');
+      applySnap(id, cell.dataset.snap);
+    };
+  });
+  win.querySelector('.titlebar').ondblclick = (e) => {
+    if (!e.target.closest('.win-controls') && !e.target.closest('.snap-picker')) toggleMaximize(id);
+  };
+  win.addEventListener('mousedown', () => focusWindow(id));
+  makeDraggable(win);
+  makeResizable(win);
+  const body = document.getElementById('body-' + id);
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:100%;height:100%;border:none;background:#0a080c;display:block';
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock allow-modals');
+  iframe.src = assetUrl(path);
+  body.appendChild(iframe);
+  focusWindow(id);
+  updateDock();
+}
+
 function applySnap(id, mode) {
   const win = openWindows[id];
   if (!win) return;
@@ -1685,6 +1836,15 @@ function closeWindow(id) {
   }
   if (id === 'music') {
     try { MUSIC.stopDestroy(); } catch (e) {}
+  }
+  if (String(id).indexOf('game-') === 0) {
+    try {
+      const b = document.getElementById('body-' + id);
+      if (b) {
+        const f = b.querySelector('iframe');
+        if (f) { f.src = 'about:blank'; f.remove(); }
+      }
+    } catch (e) {}
   }
   win.classList.remove('open');
   win.classList.add('closing');
@@ -2432,11 +2592,7 @@ function renderAppContent(id) {
         btn.style.cssText = 'padding:6px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer';
         btn.onclick = (e) => {
           e.stopPropagation();
-          const url = assetUrl(g.path);
-          const w = window.open(url, '_blank');
-          if (!w) {
-            toast('POPUP', 'Allow popups to play games');
-          }
+          openGameWindow(g.title, g.path);
         };
         row.appendChild(name);
         row.appendChild(btn);
