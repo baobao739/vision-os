@@ -37,6 +37,21 @@
   --glow: rgba(255,126,200,.45);
   --pet-filter: none;
 }
+[data-theme="black"] {
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface2: #121212;
+  --border: #222222;
+  --text: #e8e8e8;
+  --dim: #888888;
+  --faint: #555555;
+  --accent: #ffffff;
+  --accent2: #aaaaaa;
+  --accent-soft: rgba(255,255,255,.12);
+  --glow: rgba(255,255,255,.2);
+  --pet-filter: none;
+  --shadow: 0 28px 70px rgba(0,0,0,.95);
+}
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
 html, body { height:100%; overflow:hidden; font-family:var(--font); background:var(--bg); color:var(--text); user-select:none }
 #boot {
@@ -201,25 +216,39 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   opacity: 0;
 }
 #wallpaper.has-image { opacity: 1; }
+#wallpaperVideo {
+  position:absolute; inset:0; z-index:0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  display: none;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+#wallpaperVideo.show {
+  display: block;
+  opacity: 1;
+}
 #wallpaper::after {
-  content:''; position:absolute; inset:0;
+  content:''; position:absolute; inset:0; z-index:1;
   background:
     linear-gradient(105deg, var(--bg) 0%, rgba(10,8,12,.65) 28%, transparent 58%),
     linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 42%);
   pointer-events:none;
 }
-
-/* ===== DESKTOP PET (bottom left) ===== */
-#pet {
-  position:fixed; bottom:48px; right:8px; left:auto; z-index:50;
-  width: min(26vw, 240px); height: min(48vh, 400px);
-  cursor:pointer; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s;
-  filter: var(--pet-filter);
-  pointer-events: auto;
-  display: flex; align-items: flex-end; justify-content: flex-end;
-  opacity: 0;
-  visibility: hidden;
+#desktop > .wall-shade {
+  position:absolute; inset:0; z-index:1;
+  pointer-events:none;
+  display: none;
+  background:
+    linear-gradient(105deg, var(--bg) 0%, rgba(10,8,12,.65) 28%, transparent 58%),
+    linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 42%);
 }
+#desktop.has-wall-video > .wall-shade { display: block; }
+#desktop.has-wall-video #wallpaper { opacity: 0 !important; }
+
+/* pet removed */
+#pet { display: none !important; }
 #pet.has-image { opacity: 1; visibility: visible; }
 #pet:hover { transform: scale(1.03) translateY(-4px) }
 #pet img {
@@ -765,7 +794,9 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 </div>
 
 <div id="desktop">
+  <video id="wallpaperVideo" muted playsinline loop autoplay></video>
   <div id="wallpaper"></div>
+  <div class="wall-shade" aria-hidden="true"></div>
   <div id="topbar">
     <div class="top-left">
       <div class="top-brand" id="brandBtn">VISION OS</div>
@@ -1000,8 +1031,7 @@ const ICONS = {
 const PETS = {
   rias: {
     name: 'Rias',
-    pet: 'assets/rias.jpg',
-    wallpaper: 'assets/rias.png',
+    wallpaper: 'assets/rias',
     lines: [
       'Come closer… I was waiting.',
       'Good boy. You know what I like.',
@@ -1019,8 +1049,7 @@ const PETS = {
   },
   marin: {
     name: 'Marin',
-    pet: 'assets/marin.jpg',
-    wallpaper: 'assets/marin.png',
+    wallpaper: 'assets/marin',
     lines: [
       'Hey… look at me for a second~',
       'You like this outfit, don\'t you? Be honest.',
@@ -1035,8 +1064,14 @@ const PETS = {
       'I\'ll be good… or bad. Your choice tonight.',
       'Kiss the screen. I dare you to do it.'
     ]
+  },
+  black: {
+    name: 'Black',
+    wallpaper: 'assets/black',
+    lines: []
   }
 };
+
 
 
 
@@ -1177,10 +1212,14 @@ const apps = {
 
 let openWindows = {}, zCounter = 100, focusedId = null;
 let notesContent = STORE.get('notes', 'Vision OS\n\nYour space with Rias & Marin.\n\nNotes auto-save.');
-let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false });
+let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false });
 if (typeof settingsState.cloak !== 'boolean') settingsState.cloak = false;
 if (typeof settingsState.cloakAuto !== 'boolean') settingsState.cloakAuto = false;
+if (STORE.get('secretBlack', false)) settingsState.secretBlack = true;
+if (settingsState.secretBlack) STORE.set('secretBlack', true);
 let currentTheme = settingsState.theme || 'rias';
+if (currentTheme === 'black' && !(STORE.get('secretBlack', false) || settingsState.secretBlack)) currentTheme = 'rias';
+
 
 function extractColors(imgEl, cb) {
   try {
@@ -1312,6 +1351,24 @@ function applyExtractedColors(colors) {
   });
 }
 
+/* list.txt line: "file.html (Display Name)" → show Display Name */
+function parseListEntry(line) {
+  line = String(line || '').trim();
+  if (!line || line.charAt(0) === '#') return null;
+  const m = line.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if (m) {
+    return { file: m[1].trim().replace(/^.*\//, ''), title: m[2].trim() };
+  }
+  const file = line.replace(/^.*\//, '').trim();
+  return { file: file, title: null };
+}
+
+function titleFromStem(file, fallbackTitle) {
+  if (fallbackTitle) return fallbackTitle;
+  const base = String(file).replace(/^.*\//, '').replace(/\.[^.]+$/, '');
+  return base.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) || 'Untitled';
+}
+
 function assetUrl(rel) {
   if (!rel) return rel;
   if (/^(https?:|data:|blob:)/i.test(rel)) return rel;
@@ -1324,140 +1381,216 @@ function assetUrl(rel) {
   return rel;
 }
 
-/* Punch white / near-white backgrounds out of pet art (JPG has no alpha) */
-function makeTransparentPet(sourceImg, threshold) {
-  threshold = threshold == null ? 245 : threshold;
-  const w = sourceImg.naturalWidth || sourceImg.width;
-  const h = sourceImg.naturalHeight || sourceImg.height;
-  if (!w || !h) return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(sourceImg, 0, 0);
-  let data;
-  try {
-    data = ctx.getImageData(0, 0, w, h);
-  } catch (e) {
-    /* tainted canvas (CORS) — cannot process */
-    return null;
-  }
-  const d = data.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i + 1], b = d[i + 2];
-    /* pure / near white */
-    if (r >= threshold && g >= threshold && b >= threshold) {
-      d[i + 3] = 0;
-      continue;
-    }
-    /* soft edge: fade very light pixels */
-    const minc = Math.min(r, g, b);
-    const maxc = Math.max(r, g, b);
-    if (minc > 220 && maxc - minc < 25) {
-      const t = (minc - 220) / (255 - 220);
-      d[i + 3] = Math.round(d[i + 3] * (1 - t));
-    }
-  }
-  ctx.putImageData(data, 0, 0);
-  return canvas.toDataURL('image/png');
-}
-
 function applyTheme(theme) {
+  if (theme === 'black' && !(STORE.get('secretBlack', false) || settingsState.secretBlack)) {
+    theme = currentTheme === 'black' ? 'rias' : (currentTheme || 'rias');
+  }
   currentTheme = theme;
   settingsState.theme = theme;
   STORE.set('settings', settingsState);
-  document.documentElement.setAttribute('data-theme', theme === 'marin' ? 'marin' : '');
-  const pet = PETS[theme] || PETS.rias;
-  const img = document.getElementById('petImg');
+  document.documentElement.setAttribute(
+    'data-theme',
+    theme === 'marin' ? 'marin' : (theme === 'black' ? 'black' : '')
+  );
+  const cfg = PETS[theme] || PETS.rias;
   const wall = document.getElementById('wallpaper');
-  const petEl = document.getElementById('pet');
-  if (wall) { wall.classList.remove('has-image'); wall.style.backgroundImage = 'none'; }
-  if (petEl) petEl.classList.remove('has-image');
-  if (img) {
-    img.onload = null;
-    img.onerror = null;
-    img.removeAttribute('src');
+  const desk = document.getElementById('desktop');
+  const wallVid = document.getElementById('wallpaperVideo');
+  if (wall) {
+    wall.classList.remove('has-image');
+    wall.style.backgroundImage = 'none';
   }
 
   const bust = '?v=' + Date.now();
+  const stem = String(cfg.wallpaper || ('assets/' + theme)).replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
 
-  // Wallpaper = PNG (full desktop background) — leave as-is
-  if (wall && pet.wallpaper) {
-    const wUrl = assetUrl(pet.wallpaper) + bust;
+  function clearWallVideo() {
+    if (!wallVid) return;
+    try { wallVid.pause(); } catch (e) {}
+    wallVid.removeAttribute('src');
+    try { wallVid.load(); } catch (e) {}
+    wallVid.classList.remove('show');
+    if (desk) desk.classList.remove('has-wall-video');
+  }
+
+  function solidBlack() {
+    clearWallVideo();
+    if (wall) {
+      wall.style.backgroundImage = 'none';
+      wall.style.backgroundColor = '#000';
+      wall.classList.add('has-image');
+    }
+    if (desk) desk.style.background = '#000';
+    const root = document.documentElement.style;
+    root.setProperty('--bg', '#000000');
+    root.setProperty('--surface', '#0a0a0a');
+    root.setProperty('--surface2', '#121212');
+    root.setProperty('--border', '#222222');
+    root.setProperty('--accent', '#ffffff');
+    root.setProperty('--accent2', '#aaaaaa');
+    root.setProperty('--accent-soft', 'rgba(255,255,255,.12)');
+  }
+
+  function useWallImage(url) {
+    clearWallVideo();
+    if (!wall) return;
     const probe = new Image();
     probe.onload = function() {
-      wall.style.backgroundImage = 'url("' + wUrl + '")';
+      wall.style.backgroundColor = '';
+      wall.style.backgroundImage = 'url("' + url + '")';
       wall.classList.add('has-image');
       try { extractColors(probe, applyExtractedColors); } catch (e) {}
     };
     probe.onerror = function() {
-      wall.style.backgroundImage = 'none';
-      wall.classList.remove('has-image');
+      if (theme === 'black') solidBlack();
+      else {
+        wall.style.backgroundImage = 'none';
+        wall.classList.remove('has-image');
+      }
     };
-    probe.src = wUrl;
+    probe.src = url;
   }
 
-  // Pet = JPG → strip white bg → transparent PNG (works in about:blank via fetch+blob)
-  if (img && pet.pet) {
-    const pUrl = assetUrl(pet.pet) + bust;
+  function useWallVideo(url) {
+    if (!wallVid) { tryImages(); return; }
+    if (wall) {
+      wall.style.backgroundImage = 'none';
+      wall.classList.remove('has-image');
+    }
+    wallVid.onloadeddata = function() {
+      wallVid.classList.add('show');
+      if (desk) desk.classList.add('has-wall-video');
+      wallVid.loop = true;
+      wallVid.muted = true;
+      const p = wallVid.play();
+      if (p && p.catch) p.catch(function() {});
+    };
+    wallVid.onerror = function() {
+      clearWallVideo();
+      tryImages();
+    };
+    wallVid.src = url;
+    wallVid.load();
+  }
 
-    function showPetFromImage(sourceImg) {
-      let out = null;
-      try { out = makeTransparentPet(sourceImg, 240); } catch (e) { out = null; }
-      img.onload = function() {
-        if (petEl) petEl.classList.add('has-image');
-      };
-      img.onerror = function() {
-        img.onerror = null;
-        img.src = pUrl;
-        if (petEl) petEl.classList.add('has-image');
-      };
-      if (out) {
-        img.src = out;
-      } else {
-        img.src = pUrl;
-        if (petEl) petEl.classList.add('has-image');
+  function tryImages() {
+    const candidates = [
+      stem + '.png', stem + '.jpg', stem + '.jpeg', stem + '.webp', stem + '.gif',
+      cfg.wallpaper
+    ].filter(Boolean);
+    const tried = [];
+    candidates.forEach(function(c) {
+      const x = String(c).replace(/\.(mp4|webm)$/i, '');
+      if (tried.indexOf(x) < 0 && !/\.(mp4|webm)$/i.test(c)) tried.push(c.indexOf('.') >= 0 ? c : x + '.png');
+    });
+    /* unique */
+    const uniq = [];
+    tried.forEach(function(c) { if (uniq.indexOf(c) < 0) uniq.push(c); });
+    let i = 0;
+    function next() {
+      if (i >= uniq.length) {
+        if (theme === 'black') solidBlack();
+        else if (wall) {
+          wall.style.backgroundImage = 'none';
+          wall.classList.remove('has-image');
+        }
+        return;
       }
+      useWallImage(assetUrl(uniq[i++]) + bust);
+      /* chain: if fail, useWallImage onerror needs to call next - patch by sequential probes */
     }
-
-    function loadViaElement() {
-      const loader = new Image();
-      loader.crossOrigin = 'anonymous';
-      loader.onload = function() {
-        if (!this.naturalWidth) return;
-        showPetFromImage(this);
+    /* sequential probe */
+    function probeNext() {
+      if (i >= uniq.length) {
+        if (theme === 'black') solidBlack();
+        else if (wall) {
+          wall.style.backgroundImage = 'none';
+          wall.classList.remove('has-image');
+        }
+        return;
+      }
+      const url = assetUrl(uniq[i++]) + bust;
+      const probe = new Image();
+      probe.onload = function() {
+        clearWallVideo();
+        if (wall) {
+          wall.style.backgroundColor = '';
+          wall.style.backgroundImage = 'url("' + url + '")';
+          wall.classList.add('has-image');
+        }
+        try { extractColors(probe, applyExtractedColors); } catch (e) {}
       };
-      loader.onerror = function() {
-        /* last resort: show jpg as-is */
-        img.src = pUrl;
-        img.onload = function() { if (petEl) petEl.classList.add('has-image'); };
-        img.onerror = function() { if (petEl) petEl.classList.remove('has-image'); };
-      };
-      loader.src = pUrl;
+      probe.onerror = probeNext;
+      probe.src = url;
     }
+    i = 0;
+    probeNext();
+  }
 
-    /* fetch as blob avoids canvas taint on about:blank */
-    fetch(pUrl, { mode: 'cors' })
-      .then(function(r) {
-        if (!r.ok) throw new Error('pet fetch ' + r.status);
-        return r.blob();
-      })
-      .then(function(blob) {
-        const obj = URL.createObjectURL(blob);
-        const loader = new Image();
-        loader.onload = function() {
-          showPetFromImage(this);
-          try { URL.revokeObjectURL(obj); } catch (e) {}
+  clearWallVideo();
+
+  if (theme === 'black') {
+    /* try assets/black.* first, else pure black */
+    const mp4Url = assetUrl(stem + '.mp4') + bust;
+    if (wallVid) {
+      let settled = false;
+      const test = document.createElement('video');
+      test.muted = true;
+      test.preload = 'metadata';
+      const fail = function() {
+        if (settled) return;
+        settled = true;
+        tryImages();
+      };
+      const ok = function() {
+        if (settled) return;
+        settled = true;
+        useWallVideo(mp4Url);
+      };
+      test.onloadeddata = ok;
+      test.onloadedmetadata = ok;
+      test.onerror = fail;
+      test.src = mp4Url;
+      setTimeout(fail, 2000);
+    } else {
+      tryImages();
+    }
+  } else if (wall || wallVid) {
+    const mp4Url = assetUrl(stem + '.mp4') + bust;
+    const webmUrl = assetUrl(stem + '.webm') + bust;
+    if (wallVid) {
+      let settled = false;
+      const test = document.createElement('video');
+      test.muted = true;
+      test.preload = 'metadata';
+      const fail = function() {
+        if (settled) return;
+        settled = true;
+        /* try webm then images */
+        const t2 = document.createElement('video');
+        t2.muted = true;
+        t2.preload = 'metadata';
+        let s2 = false;
+        t2.onloadeddata = t2.onloadedmetadata = function() {
+          if (s2) return; s2 = true; useWallVideo(webmUrl);
         };
-        loader.onerror = function() {
-          try { URL.revokeObjectURL(obj); } catch (e) {}
-          loadViaElement();
-        };
-        loader.src = obj;
-      })
-      .catch(function() {
-        loadViaElement();
-      });
+        t2.onerror = function() { if (s2) return; s2 = true; tryImages(); };
+        t2.src = webmUrl;
+        setTimeout(function() { if (!s2) { s2 = true; tryImages(); } }, 2000);
+      };
+      const ok = function() {
+        if (settled) return;
+        settled = true;
+        useWallVideo(mp4Url);
+      };
+      test.onloadeddata = ok;
+      test.onloadedmetadata = ok;
+      test.onerror = fail;
+      test.src = mp4Url;
+      setTimeout(fail, 2500);
+    } else {
+      tryImages();
+    }
   }
 }
 
@@ -1661,14 +1794,7 @@ function addNotif(title, msg) {
 }
 
 /* Pet interaction */
-document.getElementById('pet').onclick = () => {
-  const pet = PETS[currentTheme] || PETS.rias;
-  const line = pet.lines[Math.floor(Math.random() * pet.lines.length)];
-  const bubble = document.getElementById('petBubble');
-  bubble.textContent = line;
-  bubble.classList.add('show');
-  setTimeout(() => bubble.classList.remove('show'), 3800);
-};
+/* pet removed */
 
 document.getElementById('notifBtn').onclick = (e) => {
   e.stopPropagation();
@@ -2112,8 +2238,7 @@ function renderAppContent(id) {
       if (!items.length) {
         listEl.innerHTML = '<div style="padding:20px 12px;color:var(--faint);font-size:12px;line-height:1.6">' +
           (MUSIC.tracks.length ? 'No matches.' :
-            'No tracks yet.<br><br>1. Put <b style="color:var(--dim)">song.mp3</b> in <b style="color:var(--dim)">music/</b><br>' +
-            '2. Add filename to <b style="color:var(--dim)">music/list.txt</b><br>3. Reopen Music') +
+            'No tracks yet.<br><br>music/list.txt example:<br><b style="color:var(--dim)">track.mp3 (Song Title)</b>') +
           '</div>';
         return;
       }
@@ -2146,21 +2271,39 @@ function renderAppContent(id) {
     (async () => {
       const tracks = [];
       const seen = new Set();
-      function add(file, path) {
+      function add(file, path, title) {
         const key = String(file).toLowerCase();
-        if (seen.has(key)) return;
+        if (seen.has(key)) {
+          if (title) {
+            const i = tracks.findIndex(t => t.id.toLowerCase() === key);
+            if (i >= 0) tracks[i].title = title;
+          }
+          return;
+        }
         if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(file)) return;
         seen.add(key);
-        tracks.push({ title: MUSIC.titleFromFile(file), path: path || ('music/' + file), id: file });
+        tracks.push({ title: titleFromStem(file, title), path: path || ('music/' + file), id: file });
       }
       try {
         const r = await fetch(assetUrl('music/list.txt') + '?t=' + Date.now());
         if (r.ok) {
           (await r.text()).split(/\r?\n/).forEach(line => {
-            const f = line.trim();
-            if (!f || f.startsWith('#')) return;
-            const name = f.replace(/^music\//, '');
-            add(name, 'music/' + name);
+            const ent = parseListEntry(line);
+            if (!ent || !ent.file) return;
+            if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(ent.file)) return;
+            const key = ent.file.toLowerCase();
+            if (seen.has(key)) {
+              /* upgrade title if parentheses provided */
+              const i = tracks.findIndex(t => t.id.toLowerCase() === key);
+              if (i >= 0 && ent.title) tracks[i].title = ent.title;
+              return;
+            }
+            seen.add(key);
+            tracks.push({
+              title: titleFromStem(ent.file, ent.title),
+              path: 'music/' + ent.file,
+              id: ent.file
+            });
           });
         }
       } catch (e) {}
@@ -2240,6 +2383,12 @@ function renderAppContent(id) {
     print('Vision OS Terminal'); print('type help'); promptLine();
   }
   if (id === 'settings') {
+    var blackUnlocked = !!(STORE.get('secretBlack', false) || settingsState.secretBlack);
+    var blackCard = blackUnlocked
+      ? ('<div class="theme-card ' + (currentTheme === 'black' ? 'active' : '') + '" data-theme="black">' +
+         '<div class="tc-swatch" style="background:#000;border:1px solid #333"></div>' +
+         '<div class="tc-name">Black</div><div class="tc-desc">Void</div></div>')
+      : '';
     body.innerHTML = `
       <div class="settings-body">
         <div class="settings-section">
@@ -2247,14 +2396,15 @@ function renderAppContent(id) {
           <div class="theme-pick">
             <div class="theme-card ${currentTheme==='rias'?'active':''}" data-theme="rias">
               <div class="tc-swatch" style="background:linear-gradient(135deg,#e85a7a,#c41e3a)"></div>
-              <div class="tc-name">Rias Gremory</div>
-              <div class="tc-desc">Crimson · High School DxD</div>
+              <div class="tc-name">Rias</div>
+              <div class="tc-desc">Crimson</div>
             </div>
             <div class="theme-card ${currentTheme==='marin'?'active':''}" data-theme="marin">
               <div class="tc-swatch" style="background:linear-gradient(135deg,#ff8dc7,#e05aad)"></div>
-              <div class="tc-name">Marin Kitagawa</div>
-              <div class="tc-desc">Pink · My Dress-Up Darling</div>
+              <div class="tc-name">Marin</div>
+              <div class="tc-desc">Pink</div>
             </div>
+            ${blackCard}
           </div>
         </div>
         <div class="settings-section">
@@ -2283,8 +2433,9 @@ function renderAppContent(id) {
         body.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         applyTheme(card.dataset.theme);
-        toast('THEME', PETS[card.dataset.theme].name);
-        addNotif('Theme', 'Switched to ' + PETS[card.dataset.theme].name);
+        var tn = (PETS[card.dataset.theme] && PETS[card.dataset.theme].name) || card.dataset.theme;
+        toast('THEME', tn);
+        addNotif('Theme', 'Switched to ' + tn);
       };
     });
     body.querySelector('#tog-notif').onclick = function() {
@@ -2333,7 +2484,8 @@ function renderAppContent(id) {
       if (confirm('Clear all Vision OS data?')) {
         ['vos_notes','vos_settings'].forEach(k => localStorage.removeItem(k));
         notesContent = 'Vision OS\n\nYour space.';
-        settingsState = { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false };
+        settingsState = { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false };
+        STORE.set('secretBlack', false);
         applyTheme('rias');
         toast('STORAGE', 'Cleared');
       }
@@ -2560,23 +2712,20 @@ function renderAppContent(id) {
     body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
       '<div style="font-size:15px;font-weight:600">Games</div>' +
-      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Add <b style="color:var(--dim)">Name.html</b> to games/ · list in <b style="color:var(--dim)">games/list.txt</b></div>' +
+      '<div style="font-size:11px;color:var(--faint);margin-top:4px">list.txt: <b style="color:var(--dim)">file.html (Display Name)</b></div>' +
       '</div>' +
       '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div></div>';
     const list = body.querySelector('#gamesList');
 
-    function titleFromFile(file) {
-      const base = String(file).replace(/^.*\//, '').replace(/\.html?$/i, '');
-      return base.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Untitled';
+    function titleFromFile(file, explicit) {
+      return titleFromStem(file, explicit);
     }
 
     function renderList(games) {
       list.innerHTML = '';
       if (!games.length) {
         list.innerHTML = '<div style="padding:28px 14px;color:var(--faint);font-size:12px;line-height:1.7">' +
-          'No games yet.<br><br>1. Put <b style="color:var(--dim)">Snake.html</b> in <b style="color:var(--dim)">games/</b><br>' +
-          '2. Add the filename to <b style="color:var(--dim)">games/list.txt</b><br>' +
-          '3. Refresh</div>';
+          'No games yet.<br><br>games/list.txt example:<br><b style="color:var(--dim)">badtime.html (Bad Time Simulator)</b></div>';
         return;
       }
       games.forEach(g => {
@@ -2603,12 +2752,18 @@ function renderAppContent(id) {
     (async () => {
       const games = [];
       const seen = new Set();
-      function add(file, path) {
+      function add(file, path, title) {
         const key = String(file).toLowerCase();
-        if (seen.has(key)) return;
         if (key === 'example.html' || key === 'index.html') return;
+        if (seen.has(key)) {
+          if (title) {
+            const i = games.findIndex(g => g.id.toLowerCase() === key);
+            if (i >= 0) games[i].title = title;
+          }
+          return;
+        }
         seen.add(key);
-        games.push({ title: titleFromFile(file), path: path || ('games/' + file), id: file });
+        games.push({ title: titleFromFile(file, title), path: path || ('games/' + file), id: file });
       }
 
       try {
@@ -2616,12 +2771,11 @@ function renderAppContent(id) {
         if (r.ok) {
           const text = await r.text();
           text.split(/\r?\n/).forEach(line => {
-            const f = line.trim();
-            if (f && !f.startsWith('#')) {
-              const name = f.replace(/^games\//, '');
-              if (/example\.html/i.test(name)) return;
-              add(name, 'games/' + name);
-            }
+            const ent = parseListEntry(line);
+            if (!ent || !ent.file) return;
+            if (!/\.html?$/i.test(ent.file)) return;
+            if (/example\.html/i.test(ent.file)) return;
+            add(ent.file, 'games/' + ent.file, ent.title);
           });
         }
       } catch (e) {}
@@ -2701,6 +2855,40 @@ document.addEventListener('keydown', e => {
   // Ctrl+` terminal
   if (e.ctrlKey && e.key === '`') { e.preventDefault(); openApp('terminal'); }
 });
+
+
+/* ===== secret theme unlock (type code on desktop) ===== */
+(function () {
+  const CODE = '47846909';
+  let buf = '';
+  let t = null;
+  document.addEventListener('keydown', function (e) {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const ch = e.key;
+    if (!/^[0-9]$/.test(ch)) {
+      buf = '';
+      return;
+    }
+    buf += ch;
+    if (buf.length > CODE.length) buf = buf.slice(-CODE.length);
+    clearTimeout(t);
+    t = setTimeout(function() { buf = ''; }, 4000);
+    if (buf === CODE) {
+      buf = '';
+      try {
+        STORE.set('secretBlack', true);
+        settingsState.secretBlack = true;
+        STORE.set('settings', settingsState);
+      } catch (err) {}
+      try { applyTheme('black'); } catch (err) {}
+      try { toast('SYSTEM', 'Theme unlocked'); } catch (err) {}
+      try { addNotif('Vision OS', 'Black theme unlocked'); } catch (err) {}
+    }
+  }, true);
+})();
+
 
 if (!window.__vosSkipBoot) {
   try { renderDesktopIcons(); } catch (e) { console.warn(e); }
