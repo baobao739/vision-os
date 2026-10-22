@@ -821,11 +821,20 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 
 <script>
 
-/* ===== about:blank launcher (auto-open like arcade sites) ===== */
+/* ===== about:blank cloak (optional — Settings) ===== */
 (function () {
-  if (location.protocol === 'about:') {
+  if (location.protocol === 'about:' || window.__VOS_CLOAKED) {
     try { document.documentElement.setAttribute('data-vos-blank', '1'); } catch (e) {}
     return;
+  }
+
+  function readCloakSettings() {
+    try {
+      var v = JSON.parse(localStorage.getItem('vos_settings') || '{}');
+      return { cloak: !!v.cloak, cloakAuto: !!v.cloakAuto };
+    } catch (e) {
+      return { cloak: false, cloakAuto: false };
+    }
   }
 
   var path = location.pathname || '/';
@@ -838,51 +847,95 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 
   function buildAppHtml() {
     var baseTag = '<base href="' + BASE.replace(/"/g, '&quot;') + '">';
-    var originScript = '<script>window.__VOS_ORIGIN=' + JSON.stringify(BASE) + ';window.__VOS_PAGE=' + JSON.stringify(location.href) + ';<\/script>';
-    var html = '<!DOCTYPE html><html lang="en">' + document.documentElement.innerHTML + '</html>';
+    var boot =
+      '<script>window.__VOS_CLOAKED=1;window.__VOS_ORIGIN=' + JSON.stringify(BASE) +
+      ';window.__VOS_PAGE=' + JSON.stringify(location.href) + ';<\/script>';
+    var src = document.documentElement.cloneNode(true);
+    var gate = src.querySelector('#popup-gate');
+    if (gate) gate.remove();
+    var html = '<!DOCTYPE html><html lang="en">' + src.innerHTML + '</html>';
     if (!/<base\s/i.test(html)) {
-      html = html.replace(/<head([^>]*)>/i, '<head$1>' + baseTag + originScript);
+      html = html.replace(/<head([^>]*)>/i, '<head$1>' + baseTag + boot);
     } else {
-      html = html.replace(/<head([^>]*)>/i, '<head$1>' + originScript);
+      html = html.replace(/<head([^>]*)>/i, '<head$1>' + boot);
+    }
+    if (!/<title>/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, '<head$1><title>Vision OS<\/title>');
     }
     return html;
   }
 
+  function writeInto(win, html) {
+    try {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      try { win.document.title = 'Vision OS'; } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function cloakOpener() {
     try {
-      document.title = 'Home';
+      document.title = 'Classes';
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
       document.body.innerHTML =
-        '<div style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;' +
-        'background:#0a080c;color:#b090a0;font-family:system-ui,sans-serif;text-align:center;padding:24px">' +
-        '<div><div style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#ff5a7a;margin-bottom:12px">Vision OS</div>' +
-        '<div style="font-size:14px;line-height:1.6">Opened in a new window.<br>You can close this tab.</div></div></div>';
+        '<div style="margin:0;font-family:\'Google Sans\',Roboto,Arial,sans-serif;background:#f8f9fa;min-height:100vh;color:#3c4043">' +
+        '<div style="height:64px;background:#fff;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;padding:0 24px;gap:16px">' +
+        '<div style="width:24px;height:24px;border-radius:4px;background:#1a73e8"></div>' +
+        '<div style="font-size:22px;font-weight:400;color:#5f6368">Classroom</div></div>' +
+        '<div style="max-width:720px;margin:48px auto;padding:0 24px">' +
+        '<div style="font-size:28px;font-weight:400;margin-bottom:8px">All classes</div>' +
+        '<div style="font-size:14px;color:#5f6368;line-height:1.6">Your session opened in another window.<br>You can close this tab.</div>' +
+        '</div></div>';
+      Array.prototype.slice.call(document.querySelectorAll('script')).forEach(function (s) {
+        try { s.remove(); } catch (e) {}
+      });
     } catch (e) {}
   }
 
   function openBlank() {
     var popup = null;
     try { popup = window.open('about:blank', '_blank'); } catch (e) { popup = null; }
+    if (!popup || popup.closed) {
+      try { popup = window.open('', '_blank'); } catch (e2) { popup = null; }
+    }
     if (!popup || popup.closed) return false;
-    try {
-      var html = buildAppHtml();
-      popup.document.open();
-      popup.document.write(html);
-      popup.document.close();
-      try { popup.focus(); } catch (e) {}
-      cloakOpener();
-      return true;
-    } catch (e) {
-      console.warn('blank write failed', e);
-      try { popup.close(); } catch (e2) {}
+
+    var page = buildAppHtml();
+    var ok = writeInto(popup, page);
+    if (!ok) {
+      try {
+        setTimeout(function () {
+          writeInto(popup, page);
+          try { popup.focus(); } catch (e) {}
+        }, 30);
+        ok = true;
+      } catch (e) { ok = false; }
+    }
+    if (!ok) {
+      try { popup.close(); } catch (e) {}
       return false;
     }
+    try { popup.focus(); } catch (e) {}
+    cloakOpener();
+    return true;
   }
 
+  /* always available for Settings button */
   window.__vosOpenBlank = openBlank;
 
-  function showGate() {
+  function showGate(reason) {
     var gate = document.getElementById('popup-gate');
-    if (gate) gate.classList.add('show');
+    if (gate) {
+      gate.classList.add('show');
+      var p = gate.querySelector('p');
+      if (p) {
+        p.textContent = reason || 'Allow popups for this site, then click below to open Vision OS in about:blank.';
+      }
+    }
     var btn = document.getElementById('popupOpenBtn');
     if (btn && !btn._vosBound) {
       btn._vosBound = true;
@@ -896,19 +949,29 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
     }
   }
 
-  var ok = false;
-  try { ok = openBlank(); } catch (e) { ok = false; }
+  var cfg = readCloakSettings();
 
-  if (!ok) {
-    window.__vosSkipBoot = true;
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', showGate);
-    } else {
-      showGate();
-    }
-  } else {
-    window.__vosSkipBoot = true;
+  /* Cloak disabled → normal tab, no auto popup */
+  if (!cfg.cloak) {
+    return;
   }
+
+  /* Cloak enabled */
+  if (cfg.cloakAuto) {
+    window.__vosSkipBoot = true;
+    var ok = false;
+    try { ok = openBlank(); } catch (e) { ok = false; }
+    if (!ok) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          showGate('Popups are blocked. Allow popups for this site, then click Open.');
+        });
+      } else {
+        showGate('Popups are blocked. Allow popups for this site, then click Open.');
+      }
+    }
+  }
+  /* if cloak on but auto off: stay on this page; use Settings → Open about:blank now */
 })();
 
 
@@ -1114,7 +1177,9 @@ const apps = {
 
 let openWindows = {}, zCounter = 100, focusedId = null;
 let notesContent = STORE.get('notes', 'Vision OS\n\nYour space with Rias & Marin.\n\nNotes auto-save.');
-let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias' });
+let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false });
+if (typeof settingsState.cloak !== 'boolean') settingsState.cloak = false;
+if (typeof settingsState.cloakAuto !== 'boolean') settingsState.cloakAuto = false;
 let currentTheme = settingsState.theme || 'rias';
 
 function extractColors(imgEl, cb) {
@@ -2037,6 +2102,13 @@ function renderAppContent(id) {
           <div class="setting-row"><label>Notifications</label><div class="toggle ${settingsState.notif?'on':''}" id="tog-notif"></div></div>
         </div>
         <div class="settings-section">
+          <h3>about:blank cloak</h3>
+          <div class="setting-row"><label>Enable cloak</label><div class="toggle ${settingsState.cloak?'on':''}" id="tog-cloak"></div></div>
+          <div class="setting-row"><label>Auto-open on visit</label><div class="toggle ${settingsState.cloakAuto?'on':''}" id="tog-cloak-auto"></div></div>
+          <p class="hint">Opens Vision OS in an about:blank window (address bar stays blank). Browser will ask to allow popups.</p>
+          <div class="setting-row" style="margin-top:8px"><label></label><button class="btn-danger" id="btn-cloak-open" style="background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">Open about:blank now</button></div>
+        </div>
+        <div class="settings-section">
           <h3>Proxy (Browser)</h3>
           <div class="setting-row"><label>Service prefix</label><input type="text" id="proxy-prefix" placeholder="https://your-instance.com/service/" value="${settingsState.proxyPrefix||''}"/></div>
           <p class="hint">Paste your Ultraviolet or Scramjet service URL here. Required for the browser to load sites.</p>
@@ -2060,6 +2132,37 @@ function renderAppContent(id) {
       settingsState.notif = this.classList.contains('on');
       STORE.set('settings', settingsState);
     };
+    body.querySelector('#tog-cloak').onclick = function() {
+      this.classList.toggle('on');
+      settingsState.cloak = this.classList.contains('on');
+      if (!settingsState.cloak) {
+        settingsState.cloakAuto = false;
+        var a = body.querySelector('#tog-cloak-auto');
+        if (a) a.classList.remove('on');
+      }
+      STORE.set('settings', settingsState);
+      toast('CLOAK', settingsState.cloak ? 'Cloak on — reload to apply auto' : 'Cloak off');
+    };
+    body.querySelector('#tog-cloak-auto').onclick = function() {
+      this.classList.toggle('on');
+      settingsState.cloakAuto = this.classList.contains('on');
+      if (settingsState.cloakAuto) {
+        settingsState.cloak = true;
+        var c = body.querySelector('#tog-cloak');
+        if (c) c.classList.add('on');
+      }
+      STORE.set('settings', settingsState);
+      toast('CLOAK', settingsState.cloakAuto ? 'Auto-open on — reload to use' : 'Auto-open off');
+    };
+    body.querySelector('#btn-cloak-open').onclick = function() {
+      if (typeof window.__vosOpenBlank === 'function') {
+        var ok = window.__vosOpenBlank();
+        if (!ok) toast('POPUP', 'Allow popups, then try again');
+        else toast('CLOAK', 'Opened about:blank');
+      } else {
+        toast('CLOAK', 'Reload the page first');
+      }
+    };
     const pref = body.querySelector('#proxy-prefix');
     pref.onchange = pref.onblur = function() {
       settingsState.proxyPrefix = this.value.trim();
@@ -2070,7 +2173,7 @@ function renderAppContent(id) {
       if (confirm('Clear all Vision OS data?')) {
         ['vos_notes','vos_settings'].forEach(k => localStorage.removeItem(k));
         notesContent = 'Vision OS\n\nYour space.';
-        settingsState = { notif:true, proxyPrefix:'', theme:'rias' };
+        settingsState = { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false };
         applyTheme('rias');
         toast('STORAGE', 'Cleared');
       }
