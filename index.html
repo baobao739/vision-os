@@ -60,13 +60,22 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   animation: bootPulse 4s ease-in-out infinite;
 }
 .boot-bg.has-intro {
-  background-image:
-    linear-gradient(180deg, rgba(10,8,12,.55) 0%, rgba(10,8,12,.35) 40%, rgba(10,8,12,.7) 100%),
-    url('assets/intro.jpg');
   background-size: cover;
   background-position: center center;
   animation: none;
 }
+.boot-bg.has-intro::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(10,8,12,.5) 0%, rgba(10,8,12,.3) 40%, rgba(10,8,12,.65) 100%);
+  pointer-events:none;
+}
+#bootVideo {
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit: cover; display:none; z-index:0;
+  pointer-events:none;
+}
+#bootVideo.show { display:block; }
+.boot-bg.has-video { background-image: none !important; animation: none; }
 @keyframes bootPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .85; transform: scale(1.02); }
@@ -77,24 +86,26 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   display: flex; flex-direction: column; align-items: center;
 }
 .boot-mark {
-  font-size: 13px; letter-spacing: 8px; text-transform: uppercase;
-  color: var(--accent, #ff5a7a); font-weight: 600; margin-bottom: 28px;
-  opacity: 0; animation: bootFade 1s ease forwards .2s;
+  font-size: clamp(16px, 2.2vw, 22px); letter-spacing: 12px; text-transform: uppercase;
+  color: var(--accent, #ff5a7a); font-weight: 600; margin-bottom: 36px;
+  opacity: 0; animation: bootFade 1.4s ease forwards .3s;
 }
 .boot-line {
-  font-size: 22px; font-weight: 500; letter-spacing: 1px;
-  color: #f5f0f2; margin-bottom: 12px; min-height: 32px;
-  opacity: 0; animation: bootFade 1s ease forwards .5s;
+  font-size: clamp(32px, 5.5vw, 56px); font-weight: 400; letter-spacing: 0.5px;
+  color: #f5f0f2; margin-bottom: 18px; min-height: 1.2em;
+  opacity: 0; animation: bootFade 1.4s ease forwards .6s;
+  transition: opacity .5s ease, transform .5s ease;
+  max-width: 90vw;
 }
 .boot-whisper {
-  font-size: 12px; color: #6e5564; letter-spacing: 3px;
-  text-transform: uppercase; margin-bottom: 48px;
-  opacity: 0; animation: bootFade 1s ease forwards .8s;
+  font-size: clamp(13px, 1.6vw, 16px); color: #6e5564; letter-spacing: 5px;
+  text-transform: uppercase; margin-bottom: 56px;
+  opacity: 0; animation: bootFade 1.4s ease forwards 1s;
 }
 .boot-progress-wrap {
-  width: 120px; height: 1px; background: rgba(255,255,255,.08);
-  position: relative; overflow: hidden;
-  opacity: 0; animation: bootFade 1s ease forwards 1s;
+  width: min(220px, 50vw); height: 2px; background: rgba(255,255,255,.1);
+  position: relative; overflow: hidden; border-radius: 2px;
+  opacity: 0; animation: bootFade 1.4s ease forwards 1.3s;
 }
 .boot-progress {
   position: absolute; left: 0; top: 0; height: 100%; width: 0;
@@ -668,14 +679,49 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   #dock{height:44px} .dock-item{width:36px;height:36px} .dock-item svg{width:20px;height:20px}
   #pet{width:min(58vw,280px);height:min(60vh,400px);bottom:0;right:0}
 }
+
+/* about:blank launcher gate */
+#popup-gate {
+  display: none; position: fixed; inset: 0; z-index: 100000;
+  background: #0a080c;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 24px; gap: 16px;
+}
+#popup-gate.show { display: flex; }
+#popup-gate h1 {
+  font-size: 22px; font-weight: 600; color: #f8f2f5; letter-spacing: 0.5px;
+}
+#popup-gate p {
+  font-size: 13px; color: #b090a0; max-width: 320px; line-height: 1.55;
+}
+#popup-gate button {
+  margin-top: 8px; border: none; cursor: pointer;
+  padding: 14px 36px; border-radius: 999px;
+  background: linear-gradient(135deg, #ff5a7a, #c41e3a); color: #fff;
+  font-size: 14px; font-weight: 600; letter-spacing: 0.3px;
+  box-shadow: 0 8px 28px rgba(255,90,122,.35);
+  transition: transform .15s, box-shadow .15s;
+}
+#popup-gate button:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(255,90,122,.45); }
+#popup-gate .hint { font-size: 11px; color: #6e5564; margin-top: 4px; }
+
 </style>
 </head>
 <body>
+
+<div id="popup-gate">
+  <h1>Vision OS</h1>
+  <p>Allow popups for this site, then click below. Next visits will open automatically in a new window.</p>
+  <button type="button" id="popupOpenBtn">Open Vision OS</button>
+  <div class="hint">Browser may ask: allow popups for this page</div>
+</div>
+
 <div id="boot">
+  <video id="bootVideo" muted playsinline loop autoplay></video>
   <div class="boot-bg"></div>
   <div class="boot-content">
     <div class="boot-mark">Vision OS</div>
-    <div class="boot-line" id="bootLine">Waking up…</div>
+    <div class="boot-line" id="bootLine">Starting…</div>
     <div class="boot-whisper" id="bootWhisper">by Akko</div>
     <div class="boot-progress-wrap"><div class="boot-progress" id="bootProgress"></div></div>
   </div>
@@ -774,6 +820,98 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 <div id="toast-container"></div>
 
 <script>
+
+/* ===== about:blank launcher (auto-open like arcade sites) ===== */
+(function () {
+  if (location.protocol === 'about:') {
+    try { document.documentElement.setAttribute('data-vos-blank', '1'); } catch (e) {}
+    return;
+  }
+
+  var path = location.pathname || '/';
+  var BASE;
+  if (/\/[^\/]+\.[a-zA-Z0-9]+$/.test(path)) {
+    BASE = location.origin + path.replace(/\/[^\/]+$/, '/');
+  } else {
+    BASE = location.origin + path.replace(/\/?$/, '/');
+  }
+
+  function buildAppHtml() {
+    var baseTag = '<base href="' + BASE.replace(/"/g, '&quot;') + '">';
+    var originScript = '<script>window.__VOS_ORIGIN=' + JSON.stringify(BASE) + ';window.__VOS_PAGE=' + JSON.stringify(location.href) + ';<\/script>';
+    var html = '<!DOCTYPE html><html lang="en">' + document.documentElement.innerHTML + '</html>';
+    if (!/<base\s/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, '<head$1>' + baseTag + originScript);
+    } else {
+      html = html.replace(/<head([^>]*)>/i, '<head$1>' + originScript);
+    }
+    return html;
+  }
+
+  function cloakOpener() {
+    try {
+      document.title = 'Home';
+      document.body.innerHTML =
+        '<div style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;' +
+        'background:#0a080c;color:#b090a0;font-family:system-ui,sans-serif;text-align:center;padding:24px">' +
+        '<div><div style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#ff5a7a;margin-bottom:12px">Vision OS</div>' +
+        '<div style="font-size:14px;line-height:1.6">Opened in a new window.<br>You can close this tab.</div></div></div>';
+    } catch (e) {}
+  }
+
+  function openBlank() {
+    var popup = null;
+    try { popup = window.open('about:blank', '_blank'); } catch (e) { popup = null; }
+    if (!popup || popup.closed) return false;
+    try {
+      var html = buildAppHtml();
+      popup.document.open();
+      popup.document.write(html);
+      popup.document.close();
+      try { popup.focus(); } catch (e) {}
+      cloakOpener();
+      return true;
+    } catch (e) {
+      console.warn('blank write failed', e);
+      try { popup.close(); } catch (e2) {}
+      return false;
+    }
+  }
+
+  window.__vosOpenBlank = openBlank;
+
+  function showGate() {
+    var gate = document.getElementById('popup-gate');
+    if (gate) gate.classList.add('show');
+    var btn = document.getElementById('popupOpenBtn');
+    if (btn && !btn._vosBound) {
+      btn._vosBound = true;
+      btn.addEventListener('click', function () {
+        if (openBlank()) {
+          if (gate) gate.classList.remove('show');
+        } else {
+          btn.textContent = 'Popup blocked — allow popups, then try again';
+        }
+      });
+    }
+  }
+
+  var ok = false;
+  try { ok = openBlank(); } catch (e) { ok = false; }
+
+  if (!ok) {
+    window.__vosSkipBoot = true;
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showGate);
+    } else {
+      showGate();
+    }
+  } else {
+    window.__vosSkipBoot = true;
+  }
+})();
+
+
 /* ========== ICONS (SVG paths) ========== */
 const ICONS = {
   files: '<svg viewBox="0 0 24 24"><path d="M3 7v12a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>',
@@ -799,7 +937,8 @@ const ICONS = {
 const PETS = {
   rias: {
     name: 'Rias',
-    img: 'assets/rias.png',
+    pet: 'assets/rias.jpg',
+    wallpaper: 'assets/rias.png',
     lines: [
       'Come closer… I was waiting.',
       'Good boy. You know what I like.',
@@ -817,7 +956,8 @@ const PETS = {
   },
   marin: {
     name: 'Marin',
-    img: 'assets/marin.png',
+    pet: 'assets/marin.jpg',
+    wallpaper: 'assets/marin.png',
     lines: [
       'Hey… look at me for a second~',
       'You like this outfit, don\'t you? Be honest.',
@@ -836,7 +976,117 @@ const PETS = {
 };
 
 
-const EXAMPLE_GAME_SRCDOC = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\"/>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n<title>Example Game</title>\n<style>\n  * { margin:0; padding:0; box-sizing:border-box }\n  body {\n    background: #0a080c; color: #f8f2f5; font-family: system-ui, sans-serif;\n    height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;\n    gap: 16px; overflow: hidden;\n  }\n  h1 { font-size: 18px; font-weight: 600; letter-spacing: 1px; color: #ff5a7a }\n  p { font-size: 12px; color: #b090a0; max-width: 280px; text-align: center; line-height: 1.5 }\n  canvas { border-radius: 10px; border: 1px solid #3d2c38; background: #141018; cursor: crosshair }\n  .hud { font-size: 12px; color: #b090a0; font-variant-numeric: tabular-nums }\n</style>\n</head>\n<body>\n  <h1>EXAMPLE \u00b7 VISION OS</h1>\n  <p>Click targets before they fade. Drop your own game HTML in <b>games/yourname/index.html</b> and add it to the library.</p>\n  <canvas id=\"c\" width=\"420\" height=\"280\"></canvas>\n  <div class=\"hud\">Score: <span id=\"sc\">0</span> \u00b7 Missed: <span id=\"ms\">0</span></div>\n<script>\nconst cv = document.getElementById('c'), ctx = cv.getContext('2d');\nlet score = 0, missed = 0, targets = [], t = 0;\nfunction spawn() {\n  targets.push({\n    x: 40 + Math.random() * 340,\n    y: 40 + Math.random() * 200,\n    r: 14 + Math.random() * 10,\n    life: 1,\n    hue: 340 + Math.random() * 40\n  });\n}\ncv.onclick = e => {\n  const r = cv.getBoundingClientRect();\n  const x = e.clientX - r.left, y = e.clientY - r.top;\n  for (let i = targets.length - 1; i >= 0; i--) {\n    const o = targets[i];\n    const dx = x - o.x, dy = y - o.y;\n    if (dx*dx + dy*dy < o.r*o.r) {\n      targets.splice(i, 1);\n      score++;\n      document.getElementById('sc').textContent = score;\n      return;\n    }\n  }\n};\nfunction frame() {\n  t++;\n  if (t % 45 === 0) spawn();\n  ctx.fillStyle = '#141018';\n  ctx.fillRect(0, 0, 420, 280);\n  targets.forEach((o, i) => {\n    o.life -= 0.008;\n    if (o.life <= 0) {\n      targets.splice(i, 1);\n      missed++;\n      document.getElementById('ms').textContent = missed;\n      return;\n    }\n    ctx.beginPath();\n    ctx.arc(o.x, o.y, o.r * o.life, 0, Math.PI * 2);\n    ctx.fillStyle = `hsla(${o.hue}, 80%, 60%, ${o.life})`;\n    ctx.fill();\n  });\n  requestAnimationFrame(frame);\n}\nspawn();\nframe();\n<\/script>\n</body>\n</html>\n";
+
+
+/* ===== Persistent music player (lives until Music window closes) ===== */
+const MUSIC = {
+  audio: null,
+  tracks: [],
+  index: -1,
+  playing: false,
+  _raf: null,
+  _ui: null, // { title, time, fill, playBtn, list, search } bound when app open
+  ensureAudio() {
+    if (this.audio) return this.audio;
+    const a = document.createElement('audio');
+    a.preload = 'metadata';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.addEventListener('timeupdate', () => this.syncUI());
+    a.addEventListener('ended', () => this.next());
+    a.addEventListener('loadedmetadata', () => this.syncUI());
+    a.addEventListener('play', () => { this.playing = true; this.syncUI(); });
+    a.addEventListener('pause', () => { this.playing = false; this.syncUI(); });
+    this.audio = a;
+    return a;
+  },
+  titleFromFile(file) {
+    const base = String(file).replace(/^.*\//, '').replace(/\.(mp3|m4a|wav|ogg|flac)$/i, '');
+    return base.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+  },
+  loadTrack(i) {
+    if (!this.tracks.length) return;
+    this.index = ((i % this.tracks.length) + this.tracks.length) % this.tracks.length;
+    const t = this.tracks[this.index];
+    const a = this.ensureAudio();
+    a.src = assetUrl(t.path) + (t.path.indexOf('?') >= 0 ? '&' : '?') + 'v=1';
+    a.load();
+    this.syncUI();
+  },
+  playIndex(i) {
+    this.loadTrack(i);
+    const a = this.ensureAudio();
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {});
+  },
+  toggle() {
+    const a = this.ensureAudio();
+    if (!this.tracks.length) return;
+    if (this.index < 0) { this.playIndex(0); return; }
+    if (a.paused) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+    else a.pause();
+  },
+  prev() {
+    if (!this.tracks.length) return;
+    if (this.audio && this.audio.currentTime > 3) {
+      this.audio.currentTime = 0;
+      return;
+    }
+    this.playIndex(this.index < 0 ? 0 : this.index - 1);
+  },
+  next() {
+    if (!this.tracks.length) return;
+    this.playIndex(this.index < 0 ? 0 : this.index + 1);
+  },
+  seek(ratio) {
+    const a = this.audio;
+    if (!a || !a.duration || !isFinite(a.duration)) return;
+    a.currentTime = Math.max(0, Math.min(1, ratio)) * a.duration;
+    this.syncUI();
+  },
+  stopDestroy() {
+    if (this.audio) {
+      try { this.audio.pause(); } catch (e) {}
+      this.audio.removeAttribute('src');
+      try { this.audio.load(); } catch (e) {}
+      try { this.audio.remove(); } catch (e) {}
+      this.audio = null;
+    }
+    this.playing = false;
+    this.index = -1;
+    this._ui = null;
+  },
+  fmt(s) {
+    if (!isFinite(s) || s < 0) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return m + ':' + String(sec).padStart(2, '0');
+  },
+  syncUI() {
+    const ui = this._ui;
+    if (!ui) return;
+    const a = this.audio;
+    const t = this.index >= 0 ? this.tracks[this.index] : null;
+    if (ui.title) ui.title.textContent = t ? t.title : 'No track';
+    if (ui.sub) ui.sub.textContent = t ? (this.playing ? 'Playing' : 'Paused') : 'Add files to music/';
+    if (ui.playBtn) ui.playBtn.textContent = (a && !a.paused) ? '⏸' : '▶';
+    if (a && a.duration && isFinite(a.duration)) {
+      const r = a.currentTime / a.duration;
+      if (ui.fill) ui.fill.style.width = (r * 100) + '%';
+      if (ui.time) ui.time.textContent = this.fmt(a.currentTime) + ' / ' + this.fmt(a.duration);
+    } else {
+      if (ui.fill) ui.fill.style.width = '0%';
+      if (ui.time) ui.time.textContent = '0:00 / 0:00';
+    }
+    if (ui.list) {
+      ui.list.querySelectorAll('[data-mi]').forEach(el => {
+        const i = +el.dataset.mi;
+        el.style.background = i === this.index ? 'var(--accent-soft)' : '';
+      });
+    }
+  }
+};
+
 
 const STORE = {
   get(k,f){ try{ const v=localStorage.getItem('vos_'+k); return v!==null?JSON.parse(v):f }catch{return f} },
@@ -848,7 +1098,7 @@ const apps = {
   browser:  { name:'Browser',    w:900, h:580 },
   notes:    { name:'Notes',      w:480, h:400 },
   calc:     { name:'Calculator', w:290, h:420 },
-  music:    { name:'Music',      w:360, h:420 },
+  music:    { name:'Music',      w:380, h:520 },
   calendar: { name:'Calendar',   w:380, h:400 },
   gallery:  { name:'Gallery',    w:520, h:400 },
   tasks:    { name:'Tasks',      w:400, h:420 },
@@ -997,6 +1247,18 @@ function applyExtractedColors(colors) {
   });
 }
 
+function assetUrl(rel) {
+  if (!rel) return rel;
+  if (/^(https?:|data:|blob:)/i.test(rel)) return rel;
+  var base = (typeof window.__VOS_ORIGIN === 'string' && window.__VOS_ORIGIN) ||
+    (document.querySelector('base') && document.querySelector('base').href) ||
+    (location.protocol === 'about:' ? '' : location.href);
+  try {
+    if (base) return new URL(rel, base).href;
+  } catch (e) {}
+  return rel;
+}
+
 function applyTheme(theme) {
   currentTheme = theme;
   settingsState.theme = theme;
@@ -1006,29 +1268,47 @@ function applyTheme(theme) {
   const img = document.getElementById('petImg');
   const wall = document.getElementById('wallpaper');
   const petEl = document.getElementById('pet');
-  // hide until a real file loads — no built-in fallback
   if (wall) { wall.classList.remove('has-image'); wall.style.backgroundImage = 'none'; }
   if (petEl) petEl.classList.remove('has-image');
-  img.onload = function() {
-    if (!this.naturalWidth) return;
-    try { extractColors(this, applyExtractedColors); } catch (e) {}
-    if (wall) {
-      wall.style.backgroundImage = 'url("' + this.src + '")';
+  if (img) img.removeAttribute('src');
+
+  const bust = '?v=' + Date.now();
+
+  // Wallpaper = PNG (full desktop background)
+  if (wall && pet.wallpaper) {
+    const wUrl = assetUrl(pet.wallpaper) + bust;
+    const probe = new Image();
+    probe.onload = function() {
+      wall.style.backgroundImage = 'url("' + wUrl + '")';
       wall.classList.add('has-image');
-    }
-    if (petEl) petEl.classList.add('has-image');
-  };
-  img.onerror = function() {
-    // nothing there → show nothing
-    this.removeAttribute('src');
-    if (wall) { wall.style.backgroundImage = 'none'; wall.classList.remove('has-image'); }
-    if (petEl) petEl.classList.remove('has-image');
-  };
-  img.src = pet.img + '?v=' + Date.now();
+      try { extractColors(probe, applyExtractedColors); } catch (e) {}
+    };
+    probe.onerror = function() {
+      wall.style.backgroundImage = 'none';
+      wall.classList.remove('has-image');
+    };
+    probe.src = wUrl;
+  }
+
+  // Pet = JPG (corner character)
+  if (img && pet.pet) {
+    const pUrl = assetUrl(pet.pet) + bust;
+    img.onload = function() {
+      if (!this.naturalWidth) return;
+      if (petEl) petEl.classList.add('has-image');
+    };
+    img.onerror = function() {
+      this.removeAttribute('src');
+      if (petEl) petEl.classList.remove('has-image');
+    };
+    img.src = pUrl;
+  }
 }
 
 function finishBoot() {
   try {
+    const vid = document.getElementById('bootVideo');
+    if (vid) { try { vid.pause(); } catch (e) {} vid.removeAttribute('src'); vid.classList.remove('show'); }
     const boot = document.getElementById('boot');
     if (boot) boot.classList.add('hidden');
   } catch (e) {}
@@ -1047,17 +1327,68 @@ function finishBoot() {
 }
 
 function runBoot() {
+  // intro: try mp4 (loop) → gif → jpg
   try {
     const bootBg = document.querySelector('.boot-bg');
-    if (bootBg) {
+    const vid = document.getElementById('bootVideo');
+    const bust = '?v=' + Date.now();
+
+    function useImage(path) {
+      if (!bootBg) return;
+      const url = assetUrl(path) + bust;
       const probe = new Image();
-      probe.onload = function() { bootBg.classList.add('has-intro'); };
+      probe.onload = function() {
+        bootBg.style.backgroundImage =
+          'linear-gradient(180deg, rgba(10,8,12,.5) 0%, rgba(10,8,12,.3) 40%, rgba(10,8,12,.65) 100%), url("' + url + '")';
+        bootBg.classList.add('has-intro');
+        bootBg.classList.remove('has-video');
+        if (vid) { vid.classList.remove('show'); try { vid.pause(); } catch (e) {} }
+      };
       probe.onerror = function() {};
-      probe.src = 'assets/intro.jpg?v=' + Date.now();
+      probe.src = url;
+      return probe;
     }
+
+    function tryIntro() {
+      // 1) video
+      if (vid) {
+        const mp4 = assetUrl('assets/intro.mp4') + bust;
+        vid.onloadeddata = function() {
+          vid.classList.add('show');
+          if (bootBg) {
+            bootBg.classList.add('has-intro', 'has-video');
+            bootBg.style.backgroundImage = 'none';
+          }
+          vid.loop = true;
+          vid.muted = true;
+          const p = vid.play();
+          if (p && p.catch) p.catch(function() {});
+        };
+        vid.onerror = function() {
+          vid.classList.remove('show');
+          // 2) gif then 3) jpg
+          const gif = new Image();
+          gif.onload = function() { useImage('assets/intro.gif'); };
+          gif.onerror = function() { useImage('assets/intro.jpg'); };
+          gif.src = assetUrl('assets/intro.gif') + bust;
+        };
+        vid.src = mp4;
+        vid.load();
+      } else {
+        const gif = new Image();
+        gif.onload = function() { useImage('assets/intro.gif'); };
+        gif.onerror = function() { useImage('assets/intro.jpg'); };
+        gif.src = assetUrl('assets/intro.gif') + bust;
+      }
+    }
+    tryIntro();
   } catch (e) {}
 
-  const lines = ['Waking up...', 'Loading your space...', 'Almost there...', 'Welcome back.'];
+  const lines = [
+    'Starting…',
+    'Loading…',
+    'Ready.'
+  ];
   const p = document.getElementById('bootProgress');
   const lineEl = document.getElementById('bootLine');
   let i = 0;
@@ -1069,28 +1400,33 @@ function runBoot() {
     i++;
     try {
       if (p) p.style.width = Math.min(100, (i / total) * 100) + '%';
-      if (lineEl) lineEl.textContent = lines[Math.min(i - 1, total - 1)];
+      if (lineEl) {
+        lineEl.style.opacity = '0';
+        lineEl.style.transform = 'translateY(6px)';
+        setTimeout(function() {
+          lineEl.textContent = lines[Math.min(i - 1, total - 1)];
+          lineEl.style.opacity = '1';
+          lineEl.style.transform = 'translateY(0)';
+        }, 120);
+      }
     } catch (e) {}
     if (i >= total) {
       done = true;
-      setTimeout(finishBoot, 400);
+      setTimeout(finishBoot, 700);
     }
   }
 
-  // safety: never stay on boot forever
   setTimeout(function() {
-    if (!done) {
-      done = true;
-      finishBoot();
-    }
-  }, 5000);
+    if (!done) { done = true; finishBoot(); }
+  }, 9000);
 
-  // start immediately then every 600ms
-  tick();
-  const t = setInterval(function() {
+  setTimeout(function() {
     tick();
-    if (done) clearInterval(t);
-  }, 600);
+    const t = setInterval(function() {
+      tick();
+      if (done) clearInterval(t);
+    }, 1100);
+  }, 400);
 }
 
 function startOnboarding() {
@@ -1098,7 +1434,7 @@ function startOnboarding() {
   panel.style.display = 'flex';
   const probe = new Image();
   probe.onload = () => panel.classList.add('has-intro');
-  probe.src = 'assets/intro.jpg?v=' + Date.now();
+  probe.src = assetUrl('assets/intro.jpg') + (assetUrl('assets/intro.jpg').indexOf('?')>=0?'&':'?') + 'v=' + Date.now();
   requestAnimationFrame(() => panel.classList.add('show'));
   let step = 0;
   let chosen = currentTheme || 'rias';
@@ -1281,6 +1617,9 @@ function closeWindow(id) {
   if (id === 'notes') {
     const ta = document.querySelector('#body-notes .notes-area');
     if (ta) { notesContent = ta.value; STORE.set('notes', notesContent); }
+  }
+  if (id === 'music') {
+    try { MUSIC.stopDestroy(); } catch (e) {}
   }
   win.classList.remove('open');
   win.classList.add('closing');
@@ -1506,8 +1845,127 @@ function renderAppContent(id) {
     function compute(a, b, o) { a = parseFloat(a); b = parseFloat(b); if (o === '+') return a + b; if (o === '-') return a - b; if (o === '*') return a * b; if (o === '/') return b === 0 ? 'ERR' : a / b; return b; }
   }
   if (id === 'music') {
-    body.innerHTML = '<div class="music-body"><div class="music-art"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div class="music-title">No track playing</div><div class="music-artist">Vision OS Music</div><div class="music-bar"><div class="music-bar-fill"></div></div><div class="music-controls"><button>⏮</button><button class="play">▶</button><button>⏭</button></div></div>';
+    body.innerHTML =
+      '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
+      '<div style="padding:14px 16px;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:15px;font-weight:600;margin-bottom:10px">Music</div>' +
+      '<input id="musicSearch" placeholder="Search tracks…" spellcheck="false" ' +
+      'style="width:100%;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:12px;outline:none"/>' +
+      '</div>' +
+      '<div id="musicList" style="flex:1;overflow:auto;padding:6px 10px"></div>' +
+      '<div style="padding:12px 16px 14px;border-top:1px solid var(--border);flex-shrink:0">' +
+      '<div id="musicTitle" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">No track</div>' +
+      '<div id="musicSub" style="font-size:11px;color:var(--faint);margin-top:2px">Add mp3 files to music/</div>' +
+      '<div id="musicBar" style="margin-top:10px;height:6px;background:var(--surface2);border-radius:4px;cursor:pointer;position:relative;overflow:hidden">' +
+      '<div id="musicFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;pointer-events:none"></div></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums">' +
+      '<span id="musicTime">0:00 / 0:00</span></div>' +
+      '<div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">' +
+      '<button id="musicPrev" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:14px">⏮</button>' +
+      '<button id="musicPlay" style="width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;cursor:pointer;font-size:16px">▶</button>' +
+      '<button id="musicNext" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:14px">⏭</button>' +
+      '</div></div></div>';
+
+    const listEl = body.querySelector('#musicList');
+    const searchEl = body.querySelector('#musicSearch');
+    MUSIC._ui = {
+      title: body.querySelector('#musicTitle'),
+      sub: body.querySelector('#musicSub'),
+      fill: body.querySelector('#musicFill'),
+      time: body.querySelector('#musicTime'),
+      playBtn: body.querySelector('#musicPlay'),
+      list: listEl
+    };
+    MUSIC.ensureAudio();
+
+    function renderTracks(filter) {
+      listEl.innerHTML = '';
+      const q = (filter || '').trim().toLowerCase();
+      const items = MUSIC.tracks
+        .map((t, i) => ({ t, i }))
+        .filter(x => !q || x.t.title.toLowerCase().includes(q));
+      if (!items.length) {
+        listEl.innerHTML = '<div style="padding:20px 12px;color:var(--faint);font-size:12px;line-height:1.6">' +
+          (MUSIC.tracks.length ? 'No matches.' :
+            'No tracks yet.<br><br>1. Put <b style="color:var(--dim)">song.mp3</b> in <b style="color:var(--dim)">music/</b><br>' +
+            '2. Add filename to <b style="color:var(--dim)">music/list.txt</b><br>3. Reopen Music') +
+          '</div>';
+        return;
+      }
+      items.forEach(({ t, i }) => {
+        const row = document.createElement('div');
+        row.dataset.mi = i;
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:2px;transition:background .12s';
+        if (i === MUSIC.index) row.style.background = 'var(--accent-soft)';
+        row.onmouseenter = () => { if (i !== MUSIC.index) row.style.background = 'rgba(255,255,255,.04)'; };
+        row.onmouseleave = () => { row.style.background = i === MUSIC.index ? 'var(--accent-soft)' : ''; };
+        const name = document.createElement('span');
+        name.style.cssText = 'font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        name.textContent = t.title;
+        row.appendChild(name);
+        row.onclick = () => MUSIC.playIndex(i);
+        listEl.appendChild(row);
+      });
+    }
+
+    searchEl.oninput = () => renderTracks(searchEl.value);
+    body.querySelector('#musicPlay').onclick = () => MUSIC.toggle();
+    body.querySelector('#musicPrev').onclick = () => MUSIC.prev();
+    body.querySelector('#musicNext').onclick = () => MUSIC.next();
+    body.querySelector('#musicBar').onclick = (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      MUSIC.seek(ratio);
+    };
+
+    (async () => {
+      const tracks = [];
+      const seen = new Set();
+      function add(file, path) {
+        const key = String(file).toLowerCase();
+        if (seen.has(key)) return;
+        if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(file)) return;
+        seen.add(key);
+        tracks.push({ title: MUSIC.titleFromFile(file), path: path || ('music/' + file), id: file });
+      }
+      try {
+        const r = await fetch(assetUrl('music/list.txt') + '?t=' + Date.now());
+        if (r.ok) {
+          (await r.text()).split(/\r?\n/).forEach(line => {
+            const f = line.trim();
+            if (!f || f.startsWith('#')) return;
+            const name = f.replace(/^music\//, '');
+            add(name, 'music/' + name);
+          });
+        }
+      } catch (e) {}
+      try {
+        const r = await fetch(assetUrl('music/') + '?t=' + Date.now());
+        if (r.ok) {
+          const text = await r.text();
+          const re = /href\s*=\s*["']([^"']+)["']/gi;
+          let m;
+          while ((m = re.exec(text))) {
+            let h = m[1].replace(/\\/g, '/').split('?')[0].split('#')[0].replace(/^\.\//, '');
+            const parts = h.replace(/^music\//, '').split('/');
+            if (parts.length !== 1) continue;
+            add(parts[0], 'music/' + parts[0]);
+          }
+        }
+      } catch (e) {}
+      tracks.sort((a, b) => a.title.localeCompare(b.title));
+      // keep current track if same library reopened
+      const prevPath = MUSIC.index >= 0 && MUSIC.tracks[MUSIC.index] ? MUSIC.tracks[MUSIC.index].path : null;
+      MUSIC.tracks = tracks;
+      if (prevPath) {
+        const ni = tracks.findIndex(t => t.path === prevPath);
+        MUSIC.index = ni;
+      }
+      renderTracks('');
+      MUSIC.syncUI();
+    })();
   }
+
   if (id === 'calendar') {
     const now = new Date();
     const year = now.getFullYear(), month = now.getMonth();
@@ -1642,16 +2100,85 @@ function renderAppContent(id) {
     };
   }
   if (id === 'weather') {
-    body.innerHTML = '<div style="padding:24px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center"><div style="font-size:11px;letter-spacing:2px;color:var(--faint);text-transform:uppercase">Local feel</div><div style="font-size:56px;font-weight:200" id="wxTemp">--°</div><div style="font-size:14px;color:var(--dim)" id="wxDesc">Open to refresh</div><div style="display:flex;gap:20px;margin-top:20px;font-size:12px;color:var(--faint)"><span id="wxH">Humidity --</span><span id="wxW">Wind --</span></div><button id="wxRefresh" style="margin-top:18px;padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px">Refresh</button></div>';
+    body.innerHTML = '<div style="padding:20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center">' +
+      '<div style="font-size:11px;letter-spacing:2px;color:var(--faint);text-transform:uppercase" id="wxPlace">Locating…</div>' +
+      '<div style="font-size:56px;font-weight:200" id="wxTemp">--°</div>' +
+      '<div style="font-size:14px;color:var(--dim)" id="wxDesc">—</div>' +
+      '<div style="display:flex;gap:20px;margin-top:16px;font-size:12px;color:var(--faint)">' +
+      '<span id="wxH">Humidity --</span><span id="wxW">Wind --</span></div>' +
+      '<button id="wxRefresh" style="margin-top:16px;padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px">Refresh</button>' +
+      '<div style="font-size:10px;color:var(--faint);margin-top:8px" id="wxNote">Uses your location · Open-Meteo</div></div>';
+
+    function codeText(c) {
+      c = +c;
+      if (c === 0) return 'Clear sky';
+      if (c === 1) return 'Mainly clear';
+      if (c === 2) return 'Partly cloudy';
+      if (c === 3) return 'Overcast';
+      if (c === 45 || c === 48) return 'Fog';
+      if (c >= 51 && c <= 57) return 'Drizzle';
+      if (c >= 61 && c <= 67) return 'Rain';
+      if (c >= 71 && c <= 77) return 'Snow';
+      if (c >= 80 && c <= 82) return 'Rain showers';
+      if (c >= 85 && c <= 86) return 'Snow showers';
+      if (c >= 95) return 'Thunderstorm';
+      return 'Weather';
+    }
+
+    function applyWx(data, label) {
+      const cur = data.current || {};
+      const t = cur.temperature_2m;
+      body.querySelector('#wxTemp').textContent = (t != null ? Math.round(t) : '--') + '°';
+      body.querySelector('#wxDesc').textContent = codeText(cur.weather_code);
+      body.querySelector('#wxH').textContent = 'Humidity ' + (cur.relative_humidity_2m != null ? cur.relative_humidity_2m + '%' : '--');
+      body.querySelector('#wxW').textContent = 'Wind ' + (cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + ' mph' : '--');
+      if (label) body.querySelector('#wxPlace').textContent = label;
+    }
+
+    async function fetchWx(lat, lon, label) {
+      body.querySelector('#wxDesc').textContent = 'Loading…';
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+        '&longitude=' + lon +
+        '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m' +
+        '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto';
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('weather ' + r.status);
+      const data = await r.json();
+      applyWx(data, label || (lat.toFixed(2) + ', ' + lon.toFixed(2)));
+      try {
+        // reverse-ish place name via open-meteo geocoding reverse is limited; keep coords or use timezone
+        if (data.timezone) body.querySelector('#wxPlace').textContent = label || data.timezone.replace(/_/g, ' ');
+      } catch (e) {}
+    }
+
     function loadWx() {
-      // demo / offline-friendly fake based on time
-      const h = new Date().getHours();
-      const temps = [62,64,66,68,70,72,74,73,71,69,67,65];
-      const t = temps[h % temps.length];
-      body.querySelector('#wxTemp').textContent = t + '°';
-      body.querySelector('#wxDesc').textContent = h < 6 ? 'Clear night' : h < 12 ? 'Morning haze' : h < 18 ? 'Partly cloudy' : 'Evening calm';
-      body.querySelector('#wxH').textContent = 'Humidity ' + (40 + (h%30)) + '%';
-      body.querySelector('#wxW').textContent = 'Wind ' + (3 + h%8) + ' mph';
+      body.querySelector('#wxPlace').textContent = 'Locating…';
+      body.querySelector('#wxNote').textContent = 'Uses your location · Open-Meteo';
+      if (!navigator.geolocation) {
+        // Garland, TX fallback (user area) if no geo API
+        fetchWx(32.9126, -96.6389, 'Garland area').catch(function(e) {
+          body.querySelector('#wxDesc').textContent = 'Could not load weather';
+          body.querySelector('#wxNote').textContent = String(e.message || e);
+        });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          const lat = pos.coords.latitude, lon = pos.coords.longitude;
+          fetchWx(lat, lon, 'Near you').catch(function(e) {
+            body.querySelector('#wxDesc').textContent = 'Could not load weather';
+            body.querySelector('#wxNote').textContent = String(e.message || e);
+          });
+        },
+        function(err) {
+          // permission denied or error → fallback
+          body.querySelector('#wxNote').textContent = 'Location blocked — showing Garland area';
+          fetchWx(32.9126, -96.6389, 'Garland, TX').catch(function(e) {
+            body.querySelector('#wxDesc').textContent = 'Could not load weather';
+          });
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+      );
     }
     loadWx();
     body.querySelector('#wxRefresh').onclick = loadWx;
@@ -1770,17 +2297,10 @@ function renderAppContent(id) {
     body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
       '<div style="font-size:15px;font-weight:600">Games</div>' +
-      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Add <b style="color:var(--dim)">Name.html</b> to games/ and list it in <b style="color:var(--dim)">games/list.txt</b></div>' +
+      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Add <b style="color:var(--dim)">Name.html</b> to games/ · list in <b style="color:var(--dim)">games/list.txt</b></div>' +
       '</div>' +
-      '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div>' +
-      '<div id="gamePlay" style="display:none;flex:1;flex-direction:column;min-height:0">' +
-      '<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">' +
-      '<button id="gameBack" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:11px">&larr; Back</button>' +
-      '<span id="gameTitle" style="font-size:13px;font-weight:500"></span></div>' +
-      '<div id="gameStage" style="flex:1;position:relative;background:#0a080c;min-height:0"></div></div></div>';
+      '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div></div>';
     const list = body.querySelector('#gamesList');
-    const play = body.querySelector('#gamePlay');
-    const stage = body.querySelector('#gameStage');
 
     function titleFromFile(file) {
       const base = String(file).replace(/^.*\//, '').replace(/\.html?$/i, '');
@@ -1791,8 +2311,8 @@ function renderAppContent(id) {
       list.innerHTML = '';
       if (!games.length) {
         list.innerHTML = '<div style="padding:28px 14px;color:var(--faint);font-size:12px;line-height:1.7">' +
-          'No games yet.<br><br>1. Put <b style="color:var(--dim)">Snake.html</b> in the <b style="color:var(--dim)">games/</b> folder<br>' +
-          '2. Add the filename to <b style="color:var(--dim)">games/list.txt</b> (one per line)<br>' +
+          'No games yet.<br><br>1. Put <b style="color:var(--dim)">Snake.html</b> in <b style="color:var(--dim)">games/</b><br>' +
+          '2. Add the filename to <b style="color:var(--dim)">games/list.txt</b><br>' +
           '3. Refresh</div>';
         return;
       }
@@ -1809,19 +2329,11 @@ function renderAppContent(id) {
         btn.style.cssText = 'padding:6px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer';
         btn.onclick = (e) => {
           e.stopPropagation();
-          list.style.display = 'none';
-          play.style.display = 'flex';
-          body.querySelector('#gameTitle').textContent = g.title;
-          stage.innerHTML = '';
-          const iframe = document.createElement('iframe');
-          iframe.style.cssText = 'width:100%;height:100%;border:none;background:#0a080c';
-          iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock');
-          if (g.builtin === 'example' && typeof EXAMPLE_GAME_SRCDOC !== 'undefined') {
-            iframe.srcdoc = EXAMPLE_GAME_SRCDOC;
-          } else {
-            iframe.src = g.path;
+          const url = assetUrl(g.path);
+          const w = window.open(url, '_blank');
+          if (!w) {
+            toast('POPUP', 'Allow popups to play games');
           }
-          stage.appendChild(iframe);
         };
         row.appendChild(name);
         row.appendChild(btn);
@@ -1829,36 +2341,26 @@ function renderAppContent(id) {
       });
     }
 
-    body.querySelector('#gameBack').onclick = () => {
-      list.style.display = 'block';
-      play.style.display = 'none';
-      stage.innerHTML = '';
-    };
-
     (async () => {
       const games = [];
       const seen = new Set();
-      function add(file, path, extra) {
+      function add(file, path) {
         const key = String(file).toLowerCase();
         if (seen.has(key)) return;
+        if (key === 'example.html' || key === 'index.html') return;
         seen.add(key);
-        games.push(Object.assign({
-          title: titleFromFile(file),
-          path: path || ('games/' + file),
-          id: file
-        }, extra || {}));
+        games.push({ title: titleFromFile(file), path: path || ('games/' + file), id: file });
       }
 
-      add('Example.html', 'games/Example.html', { builtin: 'example' });
-
       try {
-        const r = await fetch('games/list.txt?t=' + Date.now());
+        const r = await fetch(assetUrl('games/list.txt') + '?t=' + Date.now());
         if (r.ok) {
           const text = await r.text();
           text.split(/\r?\n/).forEach(line => {
             const f = line.trim();
             if (f && !f.startsWith('#')) {
               const name = f.replace(/^games\//, '');
+              if (/example\.html/i.test(name)) return;
               add(name, 'games/' + name);
             }
           });
@@ -1866,7 +2368,7 @@ function renderAppContent(id) {
       } catch (e) {}
 
       try {
-        const r = await fetch('games/?t=' + Date.now());
+        const r = await fetch(assetUrl('games/') + '?t=' + Date.now());
         if (r.ok) {
           const text = await r.text();
           const re = /href\s*=\s*["']([^"']+)["']/gi;
@@ -1876,19 +2378,21 @@ function renderAppContent(id) {
             if (!/\.html?$/i.test(h)) continue;
             const parts = h.replace(/^games\//, '').split('/');
             if (parts.length !== 1) continue;
+            if (/example\.html/i.test(parts[0])) continue;
             add(parts[0], 'games/' + parts[0]);
           }
         }
       } catch (e) {}
 
       try {
-        const r = await fetch('games/manifest.json?t=' + Date.now());
+        const r = await fetch(assetUrl('games/manifest.json') + '?t=' + Date.now());
         if (r.ok) {
           const data = await r.json();
           const arr = Array.isArray(data) ? data : (data.games || []);
           arr.forEach(g => {
             if (!g.path) return;
             const file = g.path.replace(/^.*\//, '');
+            if (/example\.html/i.test(file)) return;
             add(file, g.path.startsWith('games/') ? g.path : 'games/' + g.path);
           });
         }
@@ -1939,11 +2443,13 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.key === '`') { e.preventDefault(); openApp('terminal'); }
 });
 
-try { renderDesktopIcons(); } catch (e) { console.warn(e); }
-try { renderStartMenu(); } catch (e) { console.warn(e); }
-try { runBoot(); } catch (e) {
-  console.warn('boot fail', e);
-  try { document.getElementById('boot').classList.add('hidden'); } catch (e2) {}
+if (!window.__vosSkipBoot) {
+  try { renderDesktopIcons(); } catch (e) { console.warn(e); }
+  try { renderStartMenu(); } catch (e) { console.warn(e); }
+  try { runBoot(); } catch (e) {
+    console.warn('boot fail', e);
+    try { document.getElementById('boot').classList.add('hidden'); } catch (e2) {}
+  }
 }
 </script>
 </body>
