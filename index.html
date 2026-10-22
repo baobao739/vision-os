@@ -54,7 +54,18 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
     radial-gradient(ellipse 50% 40% at 20% 80%, rgba(196,60,100,.12), transparent),
     radial-gradient(ellipse 40% 30% at 85% 20%, rgba(120,40,80,.15), transparent),
     #0a080c;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
   animation: bootPulse 4s ease-in-out infinite;
+}
+.boot-bg.has-intro {
+  background-image:
+    linear-gradient(180deg, rgba(10,8,12,.55) 0%, rgba(10,8,12,.35) 40%, rgba(10,8,12,.7) 100%),
+    url('assets/intro.jpg');
+  background-size: cover;
+  background-position: center center;
+  animation: none;
 }
 @keyframes bootPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -99,8 +110,17 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 #onboard {
   position: fixed; inset: 0; z-index: 10000;
   background: #0a080c;
+  background-size: cover;
+  background-position: center center;
   display: none; flex-direction: column; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .6s ease;
+}
+#onboard.has-intro {
+  background-image:
+    linear-gradient(180deg, rgba(10,8,12,.72) 0%, rgba(10,8,12,.55) 50%, rgba(10,8,12,.8) 100%),
+    url('assets/intro.jpg');
+  background-size: cover;
+  background-position: center;
 }
 #onboard.show { display: flex; opacity: 1; }
 #onboard.leaving { opacity: 0; }
@@ -378,6 +398,18 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   border-radius:var(--radius); box-shadow:var(--shadow);
   display:flex; flex-direction:column; overflow:hidden; z-index:100;
   backdrop-filter: blur(20px);
+  opacity: 0;
+  transform: scale(0.94) translateY(12px);
+  transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s;
+}
+.window.open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.window.closing {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  pointer-events: none;
 }
 .window.focused {
   border-color: rgba(255,90,122,.35); z-index:200;
@@ -387,6 +419,7 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 .window.maximized {
   top:36px!important; left:0!important; width:100%!important;
   height:calc(100% - 36px - 48px)!important; border-radius:0;
+  transform: none !important;
 }
 .window.snap-left { top:36px!important; left:0!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:0 }
 .window.snap-right { top:36px!important; left:50%!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:0 }
@@ -763,12 +796,10 @@ const ICONS = {
   weather: '<svg viewBox="0 0 24 24"><path d="M17 18a5 5 0 00-9.9-1A4 4 0 007 18h10z"/></svg>'
 };
 
-/* Character images - public anime art (commonly used fanart-safe URLs / placeholders) */
-/* Using reliable placeholder approach with themed styling + external images that are commonly available */
 const PETS = {
   rias: {
     name: 'Rias',
-    img: 'assets/rias.png',  /* use transparent PNG for best results; JPG ok but bg shows */
+    img: 'assets/rias.png',
     lines: [
       'Come closer… I was waiting.',
       'Good boy. You know what I like.',
@@ -803,6 +834,9 @@ const PETS = {
     ]
   }
 };
+
+
+const EXAMPLE_GAME_SRCDOC = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\"/>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n<title>Example Game</title>\n<style>\n  * { margin:0; padding:0; box-sizing:border-box }\n  body {\n    background: #0a080c; color: #f8f2f5; font-family: system-ui, sans-serif;\n    height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;\n    gap: 16px; overflow: hidden;\n  }\n  h1 { font-size: 18px; font-weight: 600; letter-spacing: 1px; color: #ff5a7a }\n  p { font-size: 12px; color: #b090a0; max-width: 280px; text-align: center; line-height: 1.5 }\n  canvas { border-radius: 10px; border: 1px solid #3d2c38; background: #141018; cursor: crosshair }\n  .hud { font-size: 12px; color: #b090a0; font-variant-numeric: tabular-nums }\n</style>\n</head>\n<body>\n  <h1>EXAMPLE \u00b7 VISION OS</h1>\n  <p>Click targets before they fade. Drop your own game HTML in <b>games/yourname/index.html</b> and add it to the library.</p>\n  <canvas id=\"c\" width=\"420\" height=\"280\"></canvas>\n  <div class=\"hud\">Score: <span id=\"sc\">0</span> \u00b7 Missed: <span id=\"ms\">0</span></div>\n<script>\nconst cv = document.getElementById('c'), ctx = cv.getContext('2d');\nlet score = 0, missed = 0, targets = [], t = 0;\nfunction spawn() {\n  targets.push({\n    x: 40 + Math.random() * 340,\n    y: 40 + Math.random() * 200,\n    r: 14 + Math.random() * 10,\n    life: 1,\n    hue: 340 + Math.random() * 40\n  });\n}\ncv.onclick = e => {\n  const r = cv.getBoundingClientRect();\n  const x = e.clientX - r.left, y = e.clientY - r.top;\n  for (let i = targets.length - 1; i >= 0; i--) {\n    const o = targets[i];\n    const dx = x - o.x, dy = y - o.y;\n    if (dx*dx + dy*dy < o.r*o.r) {\n      targets.splice(i, 1);\n      score++;\n      document.getElementById('sc').textContent = score;\n      return;\n    }\n  }\n};\nfunction frame() {\n  t++;\n  if (t % 45 === 0) spawn();\n  ctx.fillStyle = '#141018';\n  ctx.fillRect(0, 0, 420, 280);\n  targets.forEach((o, i) => {\n    o.life -= 0.008;\n    if (o.life <= 0) {\n      targets.splice(i, 1);\n      missed++;\n      document.getElementById('ms').textContent = missed;\n      return;\n    }\n    ctx.beginPath();\n    ctx.arc(o.x, o.y, o.r * o.life, 0, Math.PI * 2);\n    ctx.fillStyle = `hsla(${o.hue}, 80%, 60%, ${o.life})`;\n    ctx.fill();\n  });\n  requestAnimationFrame(frame);\n}\nspawn();\nframe();\n<\/script>\n</body>\n</html>\n";
 
 const STORE = {
   get(k,f){ try{ const v=localStorage.getItem('vos_'+k); return v!==null?JSON.parse(v):f }catch{return f} },
@@ -972,13 +1006,12 @@ function applyTheme(theme) {
   const img = document.getElementById('petImg');
   const wall = document.getElementById('wallpaper');
   const petEl = document.getElementById('pet');
-  // reset until image proves it exists
+  // hide until a real file loads — no built-in fallback
   if (wall) { wall.classList.remove('has-image'); wall.style.backgroundImage = 'none'; }
   if (petEl) petEl.classList.remove('has-image');
   img.onload = function() {
-    // real image (not empty)
     if (!this.naturalWidth) return;
-    extractColors(this, applyExtractedColors);
+    try { extractColors(this, applyExtractedColors); } catch (e) {}
     if (wall) {
       wall.style.backgroundImage = 'url("' + this.src + '")';
       wall.classList.add('has-image');
@@ -986,53 +1019,86 @@ function applyTheme(theme) {
     if (petEl) petEl.classList.add('has-image');
   };
   img.onerror = function() {
-    // no png yet — totally fine, themed solid desktop only
+    // nothing there → show nothing
     this.removeAttribute('src');
     if (wall) { wall.style.backgroundImage = 'none'; wall.classList.remove('has-image'); }
     if (petEl) petEl.classList.remove('has-image');
   };
-  // only try load if path is set; optional assets
-  img.crossOrigin = 'anonymous';
   img.src = pet.img + '?v=' + Date.now();
 }
 
+function finishBoot() {
+  try {
+    const boot = document.getElementById('boot');
+    if (boot) boot.classList.add('hidden');
+  } catch (e) {}
+  try {
+    applyTheme(currentTheme || 'rias');
+  } catch (e) { console.warn('theme', e); }
+  try {
+    const seen = STORE.get('onboarded', false);
+    if (!seen) {
+      startOnboarding();
+    } else {
+      if (settingsState.notif) toast('SYSTEM', 'Welcome back');
+      addNotif('Vision OS', 'Theme: ' + ((PETS[currentTheme] && PETS[currentTheme].name) || 'Rias'));
+    }
+  } catch (e) { console.warn('post-boot', e); }
+}
+
 function runBoot() {
-  const lines = [
-    'Waking up…',
-    'Loading your space…',
-    'Almost there…',
-    'Welcome back.'
-  ];
+  try {
+    const bootBg = document.querySelector('.boot-bg');
+    if (bootBg) {
+      const probe = new Image();
+      probe.onload = function() { bootBg.classList.add('has-intro'); };
+      probe.onerror = function() {};
+      probe.src = 'assets/intro.jpg?v=' + Date.now();
+    }
+  } catch (e) {}
+
+  const lines = ['Waking up...', 'Loading your space...', 'Almost there...', 'Welcome back.'];
   const p = document.getElementById('bootProgress');
   const lineEl = document.getElementById('bootLine');
   let i = 0;
   const total = lines.length;
-  const stepMs = 900;
-  const t = setInterval(() => {
+  let done = false;
+
+  function tick() {
+    if (done) return;
     i++;
-    const pct = Math.min(100, (i / total) * 100);
-    p.style.width = pct + '%';
-    if (i <= total) lineEl.textContent = lines[Math.min(i - 1, total - 1)];
+    try {
+      if (p) p.style.width = Math.min(100, (i / total) * 100) + '%';
+      if (lineEl) lineEl.textContent = lines[Math.min(i - 1, total - 1)];
+    } catch (e) {}
     if (i >= total) {
-      clearInterval(t);
-      setTimeout(() => {
-        document.getElementById('boot').classList.add('hidden');
-        applyTheme(currentTheme);
-        const seen = STORE.get('onboarded', false);
-        if (!seen) {
-          startOnboarding();
-        } else {
-          if (settingsState.notif) toast('SYSTEM', 'Welcome back');
-          addNotif('Vision OS', 'Theme: ' + (PETS[currentTheme]?.name || 'Rias'));
-        }
-      }, 700);
+      done = true;
+      setTimeout(finishBoot, 400);
     }
-  }, stepMs);
+  }
+
+  // safety: never stay on boot forever
+  setTimeout(function() {
+    if (!done) {
+      done = true;
+      finishBoot();
+    }
+  }, 5000);
+
+  // start immediately then every 600ms
+  tick();
+  const t = setInterval(function() {
+    tick();
+    if (done) clearInterval(t);
+  }, 600);
 }
 
 function startOnboarding() {
   const panel = document.getElementById('onboard');
   panel.style.display = 'flex';
+  const probe = new Image();
+  probe.onload = () => panel.classList.add('has-intro');
+  probe.src = 'assets/intro.jpg?v=' + Date.now();
   requestAnimationFrame(() => panel.classList.add('show'));
   let step = 0;
   let chosen = currentTheme || 'rias';
@@ -1137,7 +1203,7 @@ function renderStartMenu(filter = '') {
   });
 }
 
-document.getElementById('startSearch').oninput = (e) => renderStartMenu(e.target.value);
+const _ss = document.getElementById('startSearch'); if (_ss) _ss.oninput = (e) => renderStartMenu(e.target.value);
 
 function toggleStartMenu() { document.getElementById('start-menu').classList.toggle('open'); }
 function closeStartMenu() { document.getElementById('start-menu').classList.remove('open'); }
@@ -1162,6 +1228,7 @@ function openApp(id) {
   win.innerHTML = '<div class="titlebar"><div class="title-text">' + a.name + '</div><div class="win-controls"><button class="btn-min" title="Minimize"><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></button><button class="btn-max" title="Snap / Maximize"><svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="0.5"/></svg></button><button class="btn-close" title="Close"><svg viewBox="0 0 10 10"><path d="M2 2l6 6M8 2l-6 6"/></svg></button></div><div class="snap-picker"><div class="snap-cell" data-snap="left" title="Left"></div><div class="snap-cell" data-snap="right" title="Right"></div></div></div><div class="window-body" id="body-' + id + '"></div><div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div><div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div><div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div><div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>';
   document.getElementById('windows').appendChild(win);
   openWindows[id] = win;
+  requestAnimationFrame(() => requestAnimationFrame(() => win.classList.add('open')));
   win.querySelector('.btn-close').onclick = (e) => { e.stopPropagation(); closeWindow(id); };
   win.querySelector('.btn-min').onclick = (e) => { e.stopPropagation(); minimizeWindow(id); };
   const maxBtn = win.querySelector('.btn-max');
@@ -1215,10 +1282,14 @@ function closeWindow(id) {
     const ta = document.querySelector('#body-notes .notes-area');
     if (ta) { notesContent = ta.value; STORE.set('notes', notesContent); }
   }
-  win.remove();
-  delete openWindows[id];
-  if (focusedId === id) focusedId = null;
-  updateDock();
+  win.classList.remove('open');
+  win.classList.add('closing');
+  setTimeout(() => {
+    win.remove();
+    delete openWindows[id];
+    if (focusedId === id) focusedId = null;
+    updateDock();
+  }, 200);
 }
 function minimizeWindow(id) {
   const win = openWindows[id];
@@ -1664,22 +1735,23 @@ function renderAppContent(id) {
       r.readAsDataURL(f);
     };
   }
+
   if (id === 'tasks') {
     body.innerHTML = '<div style="padding:14px;height:100%;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:8px"><input id="taskIn" placeholder="New task…" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:13px;outline:none"/><button id="taskAdd" style="padding:0 14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;cursor:pointer;font-size:12px">Add</button></div><div id="taskList" style="flex:1;overflow:auto"></div></div>';
     let tasks = STORE.get('tasks', []);
-    const list = body.querySelector('#taskList');
+    const listEl = body.querySelector('#taskList');
     function renderTasks() {
-      list.innerHTML = '';
+      listEl.innerHTML = '';
       tasks.forEach((t, i) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-bottom:6px;background:#0e0c10';
         row.innerHTML = '<input type="checkbox" '+(t.done?'checked':'')+' data-i="'+i+'"/><span style="flex:1;font-size:13px;'+(t.done?'text-decoration:line-through;color:var(--faint)':'')+'">'+t.text.replace(/</g,'&lt;')+'</span><button data-del="'+i+'" style="background:none;border:none;color:var(--faint);cursor:pointer;font-size:14px">×</button>';
-        list.appendChild(row);
+        listEl.appendChild(row);
       });
-      list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      listEl.querySelectorAll('input[type=checkbox]').forEach(cb => {
         cb.onchange = () => { tasks[+cb.dataset.i].done = cb.checked; STORE.set('tasks', tasks); renderTasks(); };
       });
-      list.querySelectorAll('[data-del]').forEach(btn => {
+      listEl.querySelectorAll('[data-del]').forEach(btn => {
         btn.onclick = () => { tasks.splice(+btn.dataset.del, 1); STORE.set('tasks', tasks); renderTasks(); };
       });
     }
@@ -1694,12 +1766,11 @@ function renderAppContent(id) {
     body.querySelector('#taskIn').onkeydown = e => { if (e.key === 'Enter') addTask(); };
   }
 
-
   if (id === 'games') {
     body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
       '<div style="font-size:15px;font-weight:600">Games</div>' +
-      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Drop <b style="color:var(--dim)">Name.html</b> into the <b style="color:var(--dim)">games/</b> folder — title is the filename</div>' +
+      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Add <b style="color:var(--dim)">Name.html</b> to games/ and list it in <b style="color:var(--dim)">games/list.txt</b></div>' +
       '</div>' +
       '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div>' +
       '<div id="gamePlay" style="display:none;flex:1;flex-direction:column;min-height:0">' +
@@ -1712,7 +1783,7 @@ function renderAppContent(id) {
     const stage = body.querySelector('#gameStage');
 
     function titleFromFile(file) {
-      const base = file.replace(/^.*\//, '').replace(/\.html?$/i, '');
+      const base = String(file).replace(/^.*\//, '').replace(/\.html?$/i, '');
       return base.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Untitled';
     }
 
@@ -1720,17 +1791,16 @@ function renderAppContent(id) {
       list.innerHTML = '';
       if (!games.length) {
         list.innerHTML = '<div style="padding:28px 14px;color:var(--faint);font-size:12px;line-height:1.7">' +
-          'No games found.<br><br>' +
-          'Add files like <b style="color:var(--dim)">games/Snake.html</b> then refresh.<br>' +
-          'Serve the folder with any static server so <code style="color:var(--accent)">games/</code> can be listed ' +
-          '(e.g. <code style="color:var(--accent)">npx serve</code> or GitHub Pages with a directory index).</div>';
+          'No games yet.<br><br>1. Put <b style="color:var(--dim)">Snake.html</b> in the <b style="color:var(--dim)">games/</b> folder<br>' +
+          '2. Add the filename to <b style="color:var(--dim)">games/list.txt</b> (one per line)<br>' +
+          '3. Refresh</div>';
         return;
       }
       games.forEach(g => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;margin-bottom:2px;transition:background .12s';
-        row.onmouseenter = () => row.style.background = 'var(--accent-soft)';
-        row.onmouseleave = () => row.style.background = 'transparent';
+        row.onmouseenter = () => { row.style.background = 'var(--accent-soft)'; };
+        row.onmouseleave = () => { row.style.background = 'transparent'; };
         const name = document.createElement('span');
         name.style.cssText = 'font-size:13px;font-weight:500;color:var(--text)';
         name.textContent = g.title;
@@ -1746,10 +1816,15 @@ function renderAppContent(id) {
           const iframe = document.createElement('iframe');
           iframe.style.cssText = 'width:100%;height:100%;border:none;background:#0a080c';
           iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock');
-          iframe.src = g.path;
+          if (g.builtin === 'example' && typeof EXAMPLE_GAME_SRCDOC !== 'undefined') {
+            iframe.srcdoc = EXAMPLE_GAME_SRCDOC;
+          } else {
+            iframe.src = g.path;
+          }
           stage.appendChild(iframe);
         };
-        row.append(name, btn);
+        row.appendChild(name);
+        row.appendChild(btn);
         list.appendChild(row);
       });
     }
@@ -1763,45 +1838,49 @@ function renderAppContent(id) {
     (async () => {
       const games = [];
       const seen = new Set();
-
-      function addFile(href) {
-        let h = (href || '').replace(/\\/g, '/').split('?')[0].split('#')[0];
-        h = h.replace(/^\.\//, '');
-        if (!h || !/\.html?$/i.test(h)) return;
-        // only direct children of games/ (or bare filename)
-        const parts = h.replace(/^games\//, '').split('/');
-        if (parts.length !== 1) return; // skip nested for flat mode
-        const file = parts[0];
-        const key = file.toLowerCase();
-        if (seen.has(key) || file.toLowerCase() === 'index.html') return;
+      function add(file, path, extra) {
+        const key = String(file).toLowerCase();
+        if (seen.has(key)) return;
         seen.add(key);
-        games.push({ title: titleFromFile(file), path: 'games/' + file, id: file });
+        games.push(Object.assign({
+          title: titleFromFile(file),
+          path: path || ('games/' + file),
+          id: file
+        }, extra || {}));
       }
 
-      // 1) Parse directory listing of games/
-      try {
-        const r = await fetch('games/?t=' + Date.now());
-        if (r.ok) {
-          const text = await r.text();
-          const re = /href\s*=\s*["']([^"']+)["']/gi;
-          let m;
-          while ((m = re.exec(text))) addFile(m[1]);
-        }
-      } catch (e) {}
+      add('Example.html', 'games/Example.html', { builtin: 'example' });
 
-      // 2) Optional simple list file: one filename per line (handy on GitHub Pages)
       try {
         const r = await fetch('games/list.txt?t=' + Date.now());
         if (r.ok) {
           const text = await r.text();
           text.split(/\r?\n/).forEach(line => {
             const f = line.trim();
-            if (f && !f.startsWith('#')) addFile(f);
+            if (f && !f.startsWith('#')) {
+              const name = f.replace(/^games\//, '');
+              add(name, 'games/' + name);
+            }
           });
         }
       } catch (e) {}
 
-      // 3) Optional manifest still supported
+      try {
+        const r = await fetch('games/?t=' + Date.now());
+        if (r.ok) {
+          const text = await r.text();
+          const re = /href\s*=\s*["']([^"']+)["']/gi;
+          let m;
+          while ((m = re.exec(text))) {
+            let h = m[1].replace(/\\/g, '/').split('?')[0].split('#')[0].replace(/^\.\//, '');
+            if (!/\.html?$/i.test(h)) continue;
+            const parts = h.replace(/^games\//, '').split('/');
+            if (parts.length !== 1) continue;
+            add(parts[0], 'games/' + parts[0]);
+          }
+        }
+      } catch (e) {}
+
       try {
         const r = await fetch('games/manifest.json?t=' + Date.now());
         if (r.ok) {
@@ -1810,9 +1889,7 @@ function renderAppContent(id) {
           arr.forEach(g => {
             if (!g.path) return;
             const file = g.path.replace(/^.*\//, '');
-            if (seen.has(file.toLowerCase())) return;
-            seen.add(file.toLowerCase());
-            games.push({ title: g.title || titleFromFile(file), path: g.path.startsWith('games/') ? g.path : 'games/' + g.path, id: file });
+            add(file, g.path.startsWith('games/') ? g.path : 'games/' + g.path);
           });
         }
       } catch (e) {}
@@ -1821,6 +1898,7 @@ function renderAppContent(id) {
       renderList(games);
     })();
   }
+
   if (id === 'about') {
     body.innerHTML = '<div class="about-body"><div class="about-mark">V</div><h2>Vision OS</h2><div class="ver">1.0 · by Akko</div><p>A desktop that lives in your browser. Drag windows, snap them, switch between Rias and Marin, talk to your pet.</p><p>Pure HTML. Everything saved locally.</p><div class="about-footer">RIAS · MARIN · AKKO</div></div>';
   }
@@ -1861,9 +1939,12 @@ document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.key === '`') { e.preventDefault(); openApp('terminal'); }
 });
 
-renderDesktopIcons();
-renderStartMenu();
-runBoot();
+try { renderDesktopIcons(); } catch (e) { console.warn(e); }
+try { renderStartMenu(); } catch (e) { console.warn(e); }
+try { runBoot(); } catch (e) {
+  console.warn('boot fail', e);
+  try { document.getElementById('boot').classList.add('hidden'); } catch (e2) {}
+}
 </script>
 </body>
 </html>
