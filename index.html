@@ -156,57 +156,100 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 
 #desktop {
   position:fixed; inset:0;
-  background:
-    radial-gradient(ellipse 80% 50% at 8% 12%, var(--accent-soft), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 92% 88%, rgba(80,40,70,.15), transparent 50%),
-    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(30,20,35,.4), transparent),
-    var(--bg);
+  background: var(--bg);
   overflow:hidden; transition: background .5s ease;
+}
+#wallpaper {
+  position:absolute; inset:0; z-index:0;
+  width: 100%; height: 100%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  transition: opacity .45s ease, background-image .45s ease;
+  opacity: 0;
+}
+#wallpaper.has-image { opacity: 1; }
+#wallpaper::after {
+  content:''; position:absolute; inset:0;
+  background:
+    linear-gradient(105deg, var(--bg) 0%, rgba(10,8,12,.65) 28%, transparent 58%),
+    linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 42%);
+  pointer-events:none;
 }
 
 /* ===== DESKTOP PET (bottom left) ===== */
 #pet {
-  position:fixed; bottom:92px; right:18px; left:auto; z-index:50;
-  width:130px; cursor:pointer; transition: transform .25s cubic-bezier(.2,.8,.2,1);
+  position:fixed; bottom:48px; right:8px; left:auto; z-index:50;
+  width: min(26vw, 240px); height: min(48vh, 400px);
+  cursor:pointer; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s;
   filter: var(--pet-filter);
+  pointer-events: auto;
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  opacity: 0;
+  visibility: hidden;
 }
-#pet:hover { transform: scale(1.06) translateY(-6px) }
+#pet.has-image { opacity: 1; visibility: visible; }
+#pet:hover { transform: scale(1.03) translateY(-4px) }
 #pet img {
-  width:100%; height:auto; max-height:180px; object-fit:contain; object-position:bottom;
+  width: 100%; height: 100%;
+  object-fit: contain; object-position: bottom right;
   display:block;
-  filter: drop-shadow(0 12px 28px rgba(0,0,0,.65));
-  border-radius: 12px;
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+  border-radius: 0;
   pointer-events:none;
-  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.25));
+  background: transparent !important;
 }
-#pet .pet-name {
-  text-align:center; font-size:11px; color:var(--accent);
-  margin-top:6px; font-weight:700; letter-spacing:1px;
-  text-shadow: 0 2px 8px rgba(0,0,0,.9);
-}
+#pet .pet-name { display: none !important; }
 #pet .pet-bubble {
-  position:absolute; bottom:100%; left:50%; transform:translateX(-50%) translateY(6px);
-  background:rgba(22,18,26,.96); border:1px solid var(--border);
-  padding:8px 14px; border-radius:14px 14px 4px 14px; font-size:12px;
-  white-space:nowrap; opacity:0; pointer-events:none; font-weight:500;
-  transition: opacity .22s, transform .22s; margin-bottom:10px;
-  box-shadow: 0 12px 32px rgba(0,0,0,.55);
+  position:absolute;
+  bottom: 42%;
+  right: 48%;
+  left: auto;
+  transform: translateX(0) translateY(10px) scale(0.96);
+  background: rgba(18,14,22,.97);
+  border: 1px solid rgba(255,255,255,.1);
+  padding: 12px 18px;
+  border-radius: 18px 18px 6px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 16px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,90,122,.08);
   color: var(--text);
-  max-width: 200px; white-space: normal; text-align: center; line-height: 1.35;
+  max-width: 280px;
+  min-width: 140px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.45;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
-#pet .pet-bubble.show { opacity:1; transform:translateX(-50%) translateY(0) }
+#pet .pet-bubble.show {
+  opacity: 1;
+  transform: translateX(0) translateY(0) scale(1);
+}
 #pet .pet-bubble::after {
-  content:''; position:absolute; bottom:-6px; right:18px; left:auto;
-  width:10px; height:10px; background:rgba(22,18,26,.96);
-  border-right:1px solid var(--border); border-bottom:1px solid var(--border);
-  transform:rotate(45deg);
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  right: 28px;
+  width: 12px;
+  height: 12px;
+  background: rgba(18,14,22,.97);
+  border-right: 1px solid rgba(255,255,255,.1);
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  transform: rotate(45deg);
+  box-shadow: 2px 2px 4px rgba(0,0,0,.15);
 }
 
 #topbar {
-  position:fixed; top:0; left:0; right:0; height:34px;
+  position:fixed; top:0; left:0; right:0; height:36px;
   display:flex; align-items:center; justify-content:space-between;
-  padding:0 16px; background:rgba(10,8,12,.82); backdrop-filter:blur(20px) saturate(1.15);
-  border-bottom:1px solid rgba(255,255,255,.05); z-index:900; font-size:12px;
+  padding:0 18px; background:rgba(10,8,12,.78); backdrop-filter:blur(24px) saturate(1.2);
+  border-bottom:1px solid rgba(255,255,255,.06); z-index:900; font-size:12px;
 }
 .top-left, .top-right { display:flex; align-items:center; gap:14px }
 .top-brand { font-weight:600; letter-spacing:1px; cursor:pointer; color:var(--accent) }
@@ -215,89 +258,119 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 #clock { color:var(--dim); font-variant-numeric:tabular-nums }
 
 .desktop-icons {
-  position:absolute; top:48px; left:18px;
-  display:flex; flex-direction:column; gap:6px; z-index:10;
+  display: none !important;
 }
 .desk-icon {
-  width:78px; display:flex; flex-direction:column; align-items:center; gap:5px;
-  cursor:pointer; padding:8px 4px; border-radius:10px; transition:background .12s;
+  width:72px; display:flex; flex-direction:column; align-items:center; gap:6px;
+  cursor:pointer; padding:6px 4px; border-radius:14px; transition:background .12s, transform .15s;
 }
-.desk-icon:hover, .desk-icon.selected { background:var(--accent-soft) }
+.desk-icon:hover, .desk-icon.selected { background:var(--accent-soft); transform: scale(1.04); }
 .desk-icon .icon-box {
-  width:46px; height:46px; border-radius:13px;
-  background: linear-gradient(145deg, var(--surface2), var(--surface));
-  border:1px solid var(--border);
+  width:54px; height:54px; border-radius:14px;  /* iOS-style rounded square */
+  background: linear-gradient(160deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid rgba(255,255,255,.08);
   display:flex; align-items:center; justify-content:center;
-  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+  overflow: hidden;
+  position: relative;
 }
-.desk-icon .icon-box svg { width:22px; height:22px; stroke:var(--accent); fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
-.desk-icon span { font-size:10px; color:var(--dim); text-align:center; max-width:74px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.desk-icon .icon-box::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 50%, rgba(0,0,0,.08) 100%);
+  pointer-events: none; border-radius: inherit;
+}
+.desk-icon .icon-box svg { width:26px; height:26px; stroke:var(--accent); fill:none; stroke-width:1.65; stroke-linecap:round; stroke-linejoin:round; position:relative; z-index:1 }
+.desk-icon span { font-size:10px; color:var(--dim); text-align:center; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500 }
 
 #dock {
-  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
-  display:flex; align-items:center; gap:4px; padding:8px 14px;
-  background:rgba(20,16,24,.88); backdrop-filter:blur(28px) saturate(1.2);
-  border:1px solid rgba(255,255,255,.06); border-radius:22px; z-index:1000;
-  box-shadow: 0 12px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+  position:fixed; bottom:0; left:0; right:0;
+  height: 48px;
+  display:flex; align-items:center; justify-content:center; gap:2px;
+  padding: 0 12px;
+  background: rgba(12,10,16,.72);
+  backdrop-filter: blur(40px) saturate(1.4);
+  border-top: 1px solid rgba(255,255,255,.07);
+  z-index:1000;
+  box-shadow: 0 -8px 32px rgba(0,0,0,.35);
 }
 .dock-item {
-  width:46px; height:46px; border-radius:13px;
+  width: 40px; height: 40px; border-radius: 6px;
   display:flex; align-items:center; justify-content:center;
-  cursor:pointer; position:relative; transition: all .15s;
-  background:transparent; border:1px solid transparent;
+  cursor:pointer; position:relative; transition: background .12s ease, transform .12s ease;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
+.dock-item::before { display: none; }
 .dock-item:hover {
-  background:var(--accent-soft); border-color:rgba(255,255,255,.08);
-  transform:translateY(-8px) scale(1.12);
-  box-shadow: 0 8px 24px var(--glow);
+  background: rgba(255,255,255,.08);
+  transform: none;
+  box-shadow: none;
 }
-.dock-item svg { width:22px; height:22px; stroke:var(--dim); fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
-.dock-item:hover svg, .dock-item.active svg { stroke:var(--accent) }
+.dock-item svg {
+  width: 22px; height: 22px; stroke: var(--dim); fill: none; stroke-width: 1.65;
+  stroke-linecap: round; stroke-linejoin: round; position: relative; z-index: 1;
+  filter: none;
+  transition: stroke .12s;
+}
+.dock-item:hover svg, .dock-item.active svg { stroke: var(--accent); }
 .dock-item.active::after {
-  content:''; position:absolute; bottom:3px; width:4px; height:4px; border-radius:50%;
-  background:var(--accent); box-shadow:0 0 8px var(--accent);
+  content:''; position:absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px var(--accent); z-index: 2;
 }
-.dock-sep { width:1px; height:24px; background:var(--border); margin:0 5px }
+.dock-sep {
+  width: 1px; height: 22px; background: rgba(255,255,255,.1); margin: 0 8px; flex-shrink: 0;
+}
 .dock-item[data-tip]:hover::before {
-  content:attr(data-tip); position:absolute; bottom:calc(100% + 12px); left:50%;
-  transform:translateX(-50%); background:var(--surface); color:var(--text); font-size:10px;
-  padding:5px 9px; border-radius:7px; white-space:nowrap; border:1px solid var(--border);
-  pointer-events:none; box-shadow:var(--shadow);
+  content: attr(data-tip); position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%); background: rgba(22,18,26,.98); color: var(--text); font-size: 11px;
+  padding: 5px 10px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--border);
+  pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 20; font-weight: 500;
 }
 
 #start-menu {
-  position:fixed; bottom:82px; left:50%; transform:translateX(-50%) scale(.96);
-  width:min(440px,94vw); background:rgba(18,14,22,.95); backdrop-filter:blur(32px) saturate(1.2);
-  border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:18px; z-index:1100;
-  opacity:0; visibility:hidden; transition:all .25s cubic-bezier(.2,.8,.2,1); box-shadow:var(--shadow);
+  position:fixed; bottom:56px; left:50%; transform:translateX(-50%) scale(.96);
+  width:min(480px,94vw); background:rgba(16,12,20,.96); backdrop-filter:blur(40px) saturate(1.3);
+  border:1px solid rgba(255,255,255,.09); border-radius:22px; padding:20px; z-index:1100;
+  opacity:0; visibility:hidden; transition:all .28s cubic-bezier(.2,.8,.2,1); box-shadow:0 28px 80px rgba(0,0,0,.7);
 }
 #start-menu.open { opacity:1; visibility:visible; transform:translateX(-50%) scale(1) }
-.start-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--border) }
+.start-header { display:flex; align-items:center; gap:14px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,.07) }
 .start-avatar {
-  width:42px; height:42px; border-radius:13px;
+  width:46px; height:46px; border-radius:14px;
   background:linear-gradient(135deg, var(--accent), var(--accent2));
-  display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:15px;
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:16px;
+  box-shadow: 0 6px 20px var(--glow);
 }
-.start-user h3 { font-size:14px; font-weight:600 }
-.start-user p { font-size:10px; color:var(--faint); letter-spacing:1px; margin-top:2px }
+.start-user h3 { font-size:15px; font-weight:600 }
+.start-user p { font-size:10px; color:var(--faint); letter-spacing:1.2px; margin-top:3px }
 .start-search {
-  width:100%; height:34px; border-radius:10px; border:1px solid var(--border);
-  background:var(--bg); color:var(--text); padding:0 12px; font-size:12px; outline:none; margin-bottom:12px;
+  width:100%; height:38px; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg); color:var(--text); padding:0 14px; font-size:13px; outline:none; margin-bottom:14px;
 }
-.start-search:focus { border-color:var(--accent) }
-.start-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; max-height:260px; overflow:auto }
+.start-search:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft) }
+.start-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-height:300px; overflow:auto }
 .start-app {
-  display:flex; flex-direction:column; align-items:center; gap:6px;
-  padding:12px 4px; border-radius:12px; cursor:pointer; transition:background .12s;
+  display:flex; flex-direction:column; align-items:center; gap:7px;
+  padding:14px 6px; border-radius:14px; cursor:pointer; transition:all .15s;
 }
-.start-app:hover { background:var(--accent-soft) }
+.start-app:hover { background:var(--accent-soft); transform:translateY(-2px) }
 .start-app .s-icon {
-  width:40px; height:40px; border-radius:12px;
-  background:var(--surface2); border:1px solid var(--border);
+  width:48px; height:48px; border-radius:14px;
+  background: linear-gradient(160deg, var(--surface2), var(--surface));
+  border:1px solid rgba(255,255,255,.08);
   display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.06);
+  position: relative; overflow: hidden;
 }
-.start-app .s-icon svg { width:20px; height:20px; stroke:var(--accent); fill:none; stroke-width:1.6 }
-.start-app span { font-size:10px; color:var(--dim); text-align:center }
+.start-app .s-icon::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 50%);
+  pointer-events:none;
+}
+.start-app .s-icon svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.65; position:relative; z-index:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3)) }
+.start-app span { font-size:11px; color:var(--dim); text-align:center; font-weight:500 }
 
 .window {
   position:absolute; min-width:320px; min-height:220px;
@@ -312,22 +385,50 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 }
 .window.minimized { display:none!important }
 .window.maximized {
-  top:32px!important; left:0!important; width:100%!important;
-  height:calc(100% - 32px - 78px)!important; border-radius:0;
+  top:36px!important; left:0!important; width:100%!important;
+  height:calc(100% - 36px - 48px)!important; border-radius:0;
 }
-.window.snap-left { top:32px!important; left:0!important; width:50%!important; height:calc(100% - 32px - 78px)!important; border-radius:0 }
-.window.snap-right { top:32px!important; left:50%!important; width:50%!important; height:calc(100% - 32px - 78px)!important; border-radius:0 }
+.window.snap-left { top:36px!important; left:0!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:0 }
+.window.snap-right { top:36px!important; left:50%!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:0 }
 .titlebar {
-  height:40px; display:flex; align-items:center; padding:0 14px;
-  background:rgba(0,0,0,.35); border-bottom:1px solid rgba(255,255,255,.05); cursor:grab; flex-shrink:0;
+  height:36px; display:flex; align-items:center; padding:0 0 0 14px;
+  background:rgba(0,0,0,.28); border-bottom:1px solid rgba(255,255,255,.05);
+  cursor:grab; flex-shrink:0; user-select:none; position:relative;
 }
 .titlebar:active { cursor:grabbing }
-.traffic { display:flex; gap:7px; margin-right:12px }
-.traffic button { width:12px; height:12px; border-radius:50%; border:none; cursor:pointer }
-.btn-close { background:#ff5f7a } .btn-min { background:#ffd166 } .btn-max { background:#7dd3a0 }
-.traffic button:hover { filter:brightness(1.15); transform:scale(1.12) }
-.title-text { flex:1; font-size:12px; font-weight:500; text-align:center; pointer-events:none; color:var(--dim) }
+.title-text {
+  flex:1; font-size:12px; font-weight:500; text-align:left;
+  pointer-events:none; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
 .window.focused .title-text { color:var(--text) }
+.win-controls { display:flex; height:100%; margin-left:auto; flex-shrink:0; }
+.win-controls button {
+  width:46px; height:100%; border:none; background:transparent;
+  color:var(--dim); cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background .1s, color .1s; padding:0;
+}
+.win-controls button svg { width:10px; height:10px; stroke:currentColor; fill:none; stroke-width:1.4; }
+.win-controls .btn-min:hover,
+.win-controls .btn-max:hover { background:rgba(255,255,255,.08); color:var(--text); }
+.win-controls .btn-close:hover { background:#e81123; color:#fff; }
+.win-controls .btn-close:hover svg { stroke:#fff; }
+.snap-picker {
+  display:none; position:absolute; top:36px; right:46px; z-index:60;
+  background:rgba(22,18,26,.98); border:1px solid var(--border); border-radius:10px;
+  padding:10px; box-shadow:0 16px 40px rgba(0,0,0,.55);
+  grid-template-columns: 52px 52px; grid-template-rows: 40px; gap:6px;
+}
+.snap-picker.show { display:grid; }
+.snap-cell {
+  border-radius:5px; border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05); cursor:pointer; transition:all .12s;
+}
+.snap-cell:hover { background:var(--accent-soft); border-color:var(--accent); }
+.window.snap-tl { top:36px!important; left:0!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:0 }
+.window.snap-tr { top:36px!important; left:50%!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:0 }
+.window.snap-bl { top:calc(36px + (100% - 36px - 48px)/2)!important; left:0!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:0 }
+.window.snap-br { top:calc(36px + (100% - 36px - 48px)/2)!important; left:50%!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:0 }
+
 .window-body { flex:1; overflow:hidden; position:relative; background:var(--surface); display:flex; flex-direction:column }
 .resize-handle { position:absolute; z-index:10 }
 .resize-n{top:0;left:6px;right:6px;height:5px;cursor:n-resize}
@@ -531,8 +632,8 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 .notif-item .ni-msg { font-size:11px; color:var(--dim); margin-top:2px }
 
 @media(max-width:600px){
-  #dock{bottom:10px} .dock-item{width:40px;height:40px}
-  .desktop-icons{top:42px;left:10px} #pet{width:80px;bottom:80px}
+  #dock{height:44px} .dock-item{width:36px;height:36px} .dock-item svg{width:20px;height:20px}
+  #pet{width:min(58vw,280px);height:min(60vh,400px);bottom:0;right:0}
 }
 </style>
 </head>
@@ -585,6 +686,7 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 </div>
 
 <div id="desktop">
+  <div id="wallpaper"></div>
   <div id="topbar">
     <div class="top-left">
       <div class="top-brand" id="brandBtn">VISION OS</div>
@@ -606,26 +708,17 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   <div id="pet">
     <div class="pet-bubble" id="petBubble">Hey~</div>
     <img id="petImg" alt="pet" draggable="false"/>
-    <div class="pet-name" id="petName">Rias</div>
   </div>
 
   <div id="dock">
     <div class="dock-item" data-app="files" data-tip="Files"><svg viewBox="0 0 24 24"><path d="M3 7v12a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg></div>
     <div class="dock-item" data-app="browser" data-tip="Browser"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
     <div class="dock-item" data-app="notes" data-tip="Notes"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
-    <div class="dock-item" data-app="calc" data-tip="Calculator"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M12 10h2M16 10h0M8 14h2M12 14h2M16 14h0M8 18h2M12 18h2"/></svg></div>
-    <div class="dock-sep"></div>
-    <div class="dock-item" data-app="paint" data-tip="Paint"><svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></div>
     <div class="dock-item" data-app="chat" data-tip="Chat"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-    <div class="dock-item" data-app="clock" data-tip="Clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-    <div class="dock-item" data-app="weather" data-tip="Weather"><svg viewBox="0 0 24 24"><path d="M17 18a5 5 0 00-9.9-1A4 4 0 007 18h10z"/></svg></div>
     <div class="dock-item" data-app="music" data-tip="Music"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-    <div class="dock-item" data-app="gallery" data-tip="Gallery"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-    <div class="dock-item" data-app="tasks" data-tip="Tasks"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
-    <div class="dock-item" data-app="calendar" data-tip="Calendar"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-    <div class="dock-item" data-app="terminal" data-tip="Terminal"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg></div>
-    <div class="dock-item" data-app="settings" data-tip="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+    <div class="dock-item" data-app="games" data-tip="Games"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 12h4M14 12h4M8 10v4M16 10v4"/></svg></div>
     <div class="dock-sep"></div>
+    <div class="dock-item" data-app="settings" data-tip="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
     <div class="dock-item" id="startBtn" data-tip="Launch"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
   </div>
 </div>
@@ -662,7 +755,12 @@ const ICONS = {
   gallery: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
   tasks: '<svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
   folder: '<svg viewBox="0 0 24 24"><path d="M3 7v12a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>',
-  file: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>'
+  file: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>',
+  games: '<svg viewBox="0 0 24 24"><path d="M6 12h4M14 12h4M8 10v4M16 10v4"/><rect x="2" y="6" width="20" height="12" rx="3"/><circle cx="8" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>',
+  chat: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+  paint: '<svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  weather: '<svg viewBox="0 0 24 24"><path d="M17 18a5 5 0 00-9.9-1A4 4 0 007 18h10z"/></svg>'
 };
 
 /* Character images - public anime art (commonly used fanart-safe URLs / placeholders) */
@@ -670,38 +768,38 @@ const ICONS = {
 const PETS = {
   rias: {
     name: 'Rias',
-    img: 'assets/rias.jpg',
+    img: 'assets/rias.png',  /* use transparent PNG for best results; JPG ok but bg shows */
     lines: [
-      'Come closer…',
-      'Good boy.',
-      'You\'ve been thinking about me.',
-      'Don\'t look away.',
-      'Say it. Say you need me.',
+      'Come closer… I was waiting.',
+      'Good boy. You know what I like.',
+      'You\'ve been thinking about me again, haven\'t you?',
+      'Don\'t look away. Keep your eyes on me.',
+      'Say it. Say you need me tonight.',
       'On your knees— just kidding… mostly.',
-      'I like when you stare.',
-      'Quiet. Let me handle you.',
-      'You\'re mine tonight.',
-      'Beg a little.',
-      'Mmm. That\'s better.',
-      'Stay right there.'
+      'I like when you stare like that.',
+      'Quiet. Let me handle everything.',
+      'You\'re mine tonight. Don\'t forget it.',
+      'Beg a little. It sounds nice from you.',
+      'Mmm. That\'s better. Stay right there.',
+      'Stay. I\'m not done looking at you yet.'
     ]
   },
   marin: {
     name: 'Marin',
-    img: 'assets/marin.jpg',
+    img: 'assets/marin.png',
     lines: [
-      'Hey… look at me.',
-      'You like this outfit, don\'t you?',
-      'Come on, closer.',
-      'I dressed up just for you~',
-      'Don\'t be shy with me.',
-      'Want to touch?',
-      'Keep staring. I don\'t mind.',
-      'Whisper it to me.',
-      'You make me feel so warm…',
-      'Stay a little longer, please?',
-      'I\'ll be good… or bad. Your choice.',
-      'Kiss the screen. I dare you.'
+      'Hey… look at me for a second~',
+      'You like this outfit, don\'t you? Be honest.',
+      'Come on, a little closer. I won\'t bite.',
+      'I dressed up just for you, you know~',
+      'Don\'t be shy with me. I already like you.',
+      'Want to touch? You can say yes.',
+      'Keep staring. I really don\'t mind at all.',
+      'Whisper it to me. I want to hear.',
+      'You make me feel so warm right now…',
+      'Stay a little longer, please? Just a bit.',
+      'I\'ll be good… or bad. Your choice tonight.',
+      'Kiss the screen. I dare you to do it.'
     ]
   }
 };
@@ -726,7 +824,8 @@ const apps = {
   chat:     { name:'Chat',       w:420, h:480 },
   terminal: { name:'Terminal',   w:560, h:360 },
   settings: { name:'Settings',   w:480, h:520 },
-  about:    { name:'About',      w:360, h:380 }
+  about:    { name:'About',      w:360, h:380 },
+  games:    { name:'Games',      w:720, h:520 }
 };
 
 let openWindows = {}, zCounter = 100, focusedId = null;
@@ -737,25 +836,28 @@ let currentTheme = settingsState.theme || 'rias';
 function extractColors(imgEl, cb) {
   try {
     const c = document.createElement('canvas');
-    const size = 64;
+    const size = 96;  /* higher res for better sampling */
     c.width = size; c.height = size;
     const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(imgEl, 0, 0, size, size);
     const data = ctx.getImageData(0, 0, size, size).data;
     const buckets = {};
-    for (let i = 0; i < data.length; i += 16) {
+    // denser sample + weight by saturation so clothing/hair colors dominate over skin/bg
+    for (let i = 0; i < data.length; i += 8) {
       const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-      if (a < 128) continue;
-      // skip near-black / near-white
+      if (a < 100) continue;
       const max = Math.max(r,g,b), min = Math.min(r,g,b);
-      if (max < 40 || min > 220) continue;
-      const key = (r>>4) + ',' + (g>>4) + ',' + (b>>4);
-      buckets[key] = (buckets[key] || 0) + 1;
+      if (max < 35 || min > 235) continue;
+      const sat = max === 0 ? 0 : (max - min) / max;
+      if (sat < 0.12) continue;  /* skip low-sat neutrals */
+      const key = (r>>3) + ',' + (g>>3) + ',' + (b>>3);  /* finer buckets */
+      const weight = 1 + sat * 3;  /* boost vivid colors */
+      buckets[key] = (buckets[key] || 0) + weight;
     }
     const sorted = Object.entries(buckets).sort((a,b) => b[1]-a[1]);
     if (!sorted.length) { cb(null); return; }
     function expand(k) {
-      const [r,g,b] = k.split(',').map(x => (parseInt(x,10)<<4) + 8);
+      const [r,g,b] = k.split(',').map(x => (parseInt(x,10)<<3) + 4);
       return [r,g,b];
     }
     const primary = expand(sorted[0][0]);
@@ -763,7 +865,7 @@ function extractColors(imgEl, cb) {
     for (let i = 1; i < sorted.length; i++) {
       const c2 = expand(sorted[i][0]);
       const dist = Math.abs(c2[0]-primary[0]) + Math.abs(c2[1]-primary[1]) + Math.abs(c2[2]-primary[2]);
-      if (dist > 80) { secondary = c2; break; }
+      if (dist > 70) { secondary = c2; break; }
     }
     cb({ primary, secondary });
   } catch (e) {
@@ -778,7 +880,6 @@ function rgba(arr, a) { return 'rgba(' + arr[0] + ',' + arr[1] + ',' + arr[2] + 
 function applyExtractedColors(colors) {
   if (!colors) return;
   const p = colors.primary, s = colors.secondary;
-  // darken primary for surfaces
   function dark(arr, factor) {
     return [
       Math.max(0, Math.round(arr[0] * factor)),
@@ -793,52 +894,72 @@ function applyExtractedColors(colors) {
       Math.round(a[2] + (b[2]-a[2])*t)
     ];
   }
-  const bg = dark(mix(p, [10,8,12], 0.85), 0.22);
-  const surface = dark(mix(p, [20,16,24], 0.7), 0.35);
-  const surface2 = dark(mix(s, [28,22,34], 0.65), 0.42);
-  const border = dark(mix(p, [60,40,55], 0.5), 0.55);
+  // stronger pull from character palette
+  const bg = dark(mix(p, [8,6,10], 0.78), 0.18);
+  const surface = dark(mix(p, [18,14,22], 0.62), 0.32);
+  const surface2 = dark(mix(s, [26,20,32], 0.55), 0.38);
+  const border = dark(mix(p, [70,45,60], 0.42), 0.5);
   const root = document.documentElement.style;
   root.setProperty('--accent', rgb(p));
   root.setProperty('--accent2', rgb(s));
-  root.setProperty('--accent-soft', rgba(p, 0.22));
-  root.setProperty('--glow', rgba(p, 0.42));
+  root.setProperty('--accent-soft', rgba(p, 0.28));
+  root.setProperty('--glow', rgba(p, 0.5));
   root.setProperty('--bg', rgb(bg));
   root.setProperty('--surface', rgb(surface));
   root.setProperty('--surface2', rgb(surface2));
   root.setProperty('--border', rgb(border));
-  // desktop wash from palette
+  // richer desktop wash that feels like the character is lighting the room
   const desk = document.getElementById('desktop');
   if (desk) {
     desk.style.background =
-      'radial-gradient(ellipse 80% 50% at 8% 12%, ' + rgba(p, 0.22) + ', transparent 55%),' +
-      'radial-gradient(ellipse 60% 40% at 92% 88%, ' + rgba(s, 0.14) + ', transparent 50%),' +
-      'radial-gradient(ellipse 40% 30% at 50% 50%, ' + rgba(bg, 0.5) + ', transparent),' +
+      'radial-gradient(ellipse 70% 55% at 85% 75%, ' + rgba(p, 0.28) + ', transparent 60%),' +
+      'radial-gradient(ellipse 55% 40% at 10% 15%, ' + rgba(s, 0.18) + ', transparent 55%),' +
+      'radial-gradient(ellipse 40% 30% at 50% 50%, ' + rgba(bg, 0.45) + ', transparent),' +
       rgb(bg);
   }
-  // window bodies pick up surface
   document.querySelectorAll('.window').forEach(w => {
-    w.style.background = rgba(surface, 0.94);
+    w.style.background = rgba(surface, 0.95);
   });
   document.querySelectorAll('.window-body').forEach(b => {
     b.style.background = rgb(surface);
   });
-  // icon tints
-  const iconColors = [
-    rgb(p), rgb(s),
-    rgba(p, 0.9),
-    'rgb(' + Math.min(255,p[0]+28) + ',' + Math.max(0,p[1]-8) + ',' + Math.min(255,p[2]+18) + ')',
-    'rgb(' + Math.max(0,s[0]-18) + ',' + Math.min(255,s[1]+12) + ',' + Math.min(255,s[2]+8) + ')',
-    rgba(s, 0.85),
-    rgb(mix(p,s,0.5)),
-    rgba(p, 0.75)
+  // iOS-like app icons: each gets a distinct soft fill from the palette
+  const iconFills = [
+    [p, dark(p, 0.55)],
+    [s, dark(s, 0.55)],
+    [mix(p,s,0.35), dark(mix(p,s,0.35), 0.55)],
+    [mix(p,[255,180,200],0.25), dark(p,0.5)],
+    [mix(s,[200,120,180],0.3), dark(s,0.5)],
+    [mix(p,s,0.7), dark(mix(p,s,0.7),0.55)],
+    [dark(p,0.85), dark(p,0.45)],
+    [mix(s,p,0.4), dark(s,0.5)]
   ];
-  document.querySelectorAll('.desk-icon .icon-box svg, .dock-item svg, .start-app .s-icon svg').forEach((svg, i) => {
-    svg.style.stroke = iconColors[i % iconColors.length];
-  });
   document.querySelectorAll('.desk-icon .icon-box').forEach((box, i) => {
-    const c = iconColors[i % iconColors.length];
-    box.style.borderColor = c.replace('rgb(','rgba(').replace(')', ',0.4)');
-    box.style.background = 'linear-gradient(145deg, ' + rgba(surface2,1) + ', ' + rgba(surface,1) + ')';
+    const [c1, c2] = iconFills[i % iconFills.length];
+    box.style.background = 'linear-gradient(160deg, ' + rgb(c1) + ' 0%, ' + rgb(c2) + ' 100%)';
+    box.style.borderColor = rgba(c1, 0.35);
+    box.style.boxShadow = '0 6px 18px ' + rgba(c1, 0.35) + ', inset 0 1px 0 rgba(255,255,255,.12)';
+  });
+  document.querySelectorAll('.desk-icon .icon-box svg').forEach((svg, i) => {
+    svg.style.stroke = '#fff';
+    svg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,.35))';
+  });
+  // Windows-style dock: accent stroke only, Launch keeps filled tiles
+  document.querySelectorAll('.dock-item').forEach(item => {
+    item.style.background = '';
+    item.style.borderColor = '';
+    item.style.boxShadow = '';
+  });
+  document.querySelectorAll('.dock-item svg').forEach(svg => {
+    svg.style.stroke = '';
+  });
+  document.querySelectorAll('.start-app .s-icon').forEach((box, i) => {
+    const [c1, c2] = iconFills[i % iconFills.length];
+    box.style.background = 'linear-gradient(160deg, ' + rgb(c1) + ' 0%, ' + rgb(c2) + ' 100%)';
+    box.style.borderColor = rgba(c1, 0.4);
+  });
+  document.querySelectorAll('.start-app .s-icon svg').forEach(svg => {
+    svg.style.stroke = '#fff';
   });
 }
 
@@ -849,21 +970,29 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme === 'marin' ? 'marin' : '');
   const pet = PETS[theme] || PETS.rias;
   const img = document.getElementById('petImg');
-  const name = document.getElementById('petName');
-  name.textContent = pet.name;
-  img.crossOrigin = 'anonymous';
+  const wall = document.getElementById('wallpaper');
+  const petEl = document.getElementById('pet');
+  // reset until image proves it exists
+  if (wall) { wall.classList.remove('has-image'); wall.style.backgroundImage = 'none'; }
+  if (petEl) petEl.classList.remove('has-image');
   img.onload = function() {
+    // real image (not empty)
+    if (!this.naturalWidth) return;
     extractColors(this, applyExtractedColors);
+    if (wall) {
+      wall.style.backgroundImage = 'url("' + this.src + '")';
+      wall.classList.add('has-image');
+    }
+    if (petEl) petEl.classList.add('has-image');
   };
   img.onerror = function() {
-    this.onerror = null;
-    const color = theme === 'marin' ? '#ff7ec8' : '#ff5a7a';
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260">' +
-      '<rect width="200" height="260" rx="16" fill="#16121a"/>' +
-      '<text x="100" y="130" text-anchor="middle" fill="' + color + '" font-size="16" font-family="system-ui">Add ' + pet.name + '.jpg</text>' +
-      '<text x="100" y="155" text-anchor="middle" fill="#6a5560" font-size="12" font-family="system-ui">to /assets</text></svg>';
-    this.src = 'data:image/svg+xml;base64,' + btoa(svg);
+    // no png yet — totally fine, themed solid desktop only
+    this.removeAttribute('src');
+    if (wall) { wall.style.backgroundImage = 'none'; wall.classList.remove('has-image'); }
+    if (petEl) petEl.classList.remove('has-image');
   };
+  // only try load if path is set; optional assets
+  img.crossOrigin = 'anonymous';
   img.src = pet.img + '?v=' + Date.now();
 }
 
@@ -980,7 +1109,7 @@ document.getElementById('pet').onclick = () => {
   const bubble = document.getElementById('petBubble');
   bubble.textContent = line;
   bubble.classList.add('show');
-  setTimeout(() => bubble.classList.remove('show'), 2800);
+  setTimeout(() => bubble.classList.remove('show'), 3800);
 };
 
 document.getElementById('notifBtn').onclick = (e) => {
@@ -989,17 +1118,9 @@ document.getElementById('notifBtn').onclick = (e) => {
 };
 
 function renderDesktopIcons() {
+  /* desktop icons disabled — everything lives on the dock + Launch */
   const c = document.getElementById('desktopIcons');
-  c.innerHTML = '';
-  ['files','browser','notes','gallery','tasks','paint','chat','settings'].forEach(id => {
-    const a = apps[id];
-    const el = document.createElement('div');
-    el.className = 'desk-icon';
-    el.innerHTML = '<div class="icon-box">' + (ICONS[id] || '') + '</div><span>' + a.name + '</span>';
-    el.ondblclick = () => openApp(id);
-    el.onclick = () => { document.querySelectorAll('.desk-icon').forEach(i => i.classList.remove('selected')); el.classList.add('selected'); };
-    c.appendChild(el);
-  });
+  if (c) c.innerHTML = '';
 }
 
 function renderStartMenu(filter = '') {
@@ -1038,19 +1159,53 @@ function openApp(id) {
   win.style.height = a.h + 'px';
   win.style.left = Math.min(80 + off, window.innerWidth - a.w - 40) + 'px';
   win.style.top = Math.min(50 + off, window.innerHeight - a.h - 110) + 'px';
-  win.innerHTML = '<div class="titlebar"><div class="traffic"><button class="btn-close"></button><button class="btn-min"></button><button class="btn-max"></button></div><div class="title-text">' + a.name + '</div></div><div class="window-body" id="body-' + id + '"></div><div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div><div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div><div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div><div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>';
+  win.innerHTML = '<div class="titlebar"><div class="title-text">' + a.name + '</div><div class="win-controls"><button class="btn-min" title="Minimize"><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></button><button class="btn-max" title="Snap / Maximize"><svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="0.5"/></svg></button><button class="btn-close" title="Close"><svg viewBox="0 0 10 10"><path d="M2 2l6 6M8 2l-6 6"/></svg></button></div><div class="snap-picker"><div class="snap-cell" data-snap="left" title="Left"></div><div class="snap-cell" data-snap="right" title="Right"></div></div></div><div class="window-body" id="body-' + id + '"></div><div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div><div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div><div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div><div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>';
   document.getElementById('windows').appendChild(win);
   openWindows[id] = win;
   win.querySelector('.btn-close').onclick = (e) => { e.stopPropagation(); closeWindow(id); };
   win.querySelector('.btn-min').onclick = (e) => { e.stopPropagation(); minimizeWindow(id); };
-  win.querySelector('.btn-max').onclick = (e) => { e.stopPropagation(); toggleMaximize(id); };
-  win.querySelector('.titlebar').ondblclick = (e) => { if (!e.target.closest('.traffic')) toggleMaximize(id); };
+  const maxBtn = win.querySelector('.btn-max');
+  const snapPicker = win.querySelector('.snap-picker');
+  let snapHide = null;
+  maxBtn.onmouseenter = () => {
+    clearTimeout(snapHide);
+    snapHide = setTimeout(() => snapPicker.classList.add('show'), 300);
+  };
+  maxBtn.onmouseleave = () => {
+    snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
+  };
+  snapPicker.onmouseenter = () => clearTimeout(snapHide);
+  snapPicker.onmouseleave = () => snapPicker.classList.remove('show');
+  maxBtn.onclick = (e) => { e.stopPropagation(); snapPicker.classList.remove('show'); toggleMaximize(id); };
+  snapPicker.querySelectorAll('[data-snap]').forEach(cell => {
+    cell.onclick = (e) => {
+      e.stopPropagation();
+      snapPicker.classList.remove('show');
+      applySnap(id, cell.dataset.snap);
+    };
+  });
+  win.querySelector('.titlebar').ondblclick = (e) => {
+    if (!e.target.closest('.win-controls') && !e.target.closest('.snap-picker')) toggleMaximize(id);
+  };
   win.addEventListener('mousedown', () => focusWindow(id));
   makeDraggable(win);
   makeResizable(win);
   renderAppContent(id);
   focusWindow(id);
   updateDock();
+}
+
+function applySnap(id, mode) {
+  const win = openWindows[id];
+  if (!win) return;
+  ['maximized','snap-left','snap-right','snap-tl','snap-tr','snap-bl','snap-br'].forEach(c => win.classList.remove(c));
+  if (mode === 'left') win.classList.add('snap-left');
+  else if (mode === 'right') win.classList.add('snap-right');
+  else if (mode === 'tl') win.classList.add('snap-tl');
+  else if (mode === 'tr') win.classList.add('snap-tr');
+  else if (mode === 'bl') win.classList.add('snap-bl');
+  else if (mode === 'br') win.classList.add('snap-br');
+  focusWindow(id);
 }
 
 function closeWindow(id) {
@@ -1101,7 +1256,7 @@ function makeDraggable(win) {
   const bar = win.querySelector('.titlebar');
   let sx, sy, sl, st;
   bar.addEventListener('mousedown', e => {
-    if (e.target.closest('.traffic') || win.classList.contains('maximized') || win.classList.contains('snap-left') || win.classList.contains('snap-right')) return;
+    if (e.target.closest('.win-controls') || e.target.closest('.snap-picker') || win.classList.contains('maximized') || win.classList.contains('snap-left') || win.classList.contains('snap-right')) return;
     e.preventDefault();
     sx = e.clientX; sy = e.clientY;
     sl = parseInt(win.style.left) || 0; st = parseInt(win.style.top) || 0;
@@ -1539,6 +1694,133 @@ function renderAppContent(id) {
     body.querySelector('#taskIn').onkeydown = e => { if (e.key === 'Enter') addTask(); };
   }
 
+
+  if (id === 'games') {
+    body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
+      '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:15px;font-weight:600">Games</div>' +
+      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Drop <b style="color:var(--dim)">Name.html</b> into the <b style="color:var(--dim)">games/</b> folder — title is the filename</div>' +
+      '</div>' +
+      '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div>' +
+      '<div id="gamePlay" style="display:none;flex:1;flex-direction:column;min-height:0">' +
+      '<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">' +
+      '<button id="gameBack" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:11px">&larr; Back</button>' +
+      '<span id="gameTitle" style="font-size:13px;font-weight:500"></span></div>' +
+      '<div id="gameStage" style="flex:1;position:relative;background:#0a080c;min-height:0"></div></div></div>';
+    const list = body.querySelector('#gamesList');
+    const play = body.querySelector('#gamePlay');
+    const stage = body.querySelector('#gameStage');
+
+    function titleFromFile(file) {
+      const base = file.replace(/^.*\//, '').replace(/\.html?$/i, '');
+      return base.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Untitled';
+    }
+
+    function renderList(games) {
+      list.innerHTML = '';
+      if (!games.length) {
+        list.innerHTML = '<div style="padding:28px 14px;color:var(--faint);font-size:12px;line-height:1.7">' +
+          'No games found.<br><br>' +
+          'Add files like <b style="color:var(--dim)">games/Snake.html</b> then refresh.<br>' +
+          'Serve the folder with any static server so <code style="color:var(--accent)">games/</code> can be listed ' +
+          '(e.g. <code style="color:var(--accent)">npx serve</code> or GitHub Pages with a directory index).</div>';
+        return;
+      }
+      games.forEach(g => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;margin-bottom:2px;transition:background .12s';
+        row.onmouseenter = () => row.style.background = 'var(--accent-soft)';
+        row.onmouseleave = () => row.style.background = 'transparent';
+        const name = document.createElement('span');
+        name.style.cssText = 'font-size:13px;font-weight:500;color:var(--text)';
+        name.textContent = g.title;
+        const btn = document.createElement('button');
+        btn.textContent = 'Play';
+        btn.style.cssText = 'padding:6px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer';
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          list.style.display = 'none';
+          play.style.display = 'flex';
+          body.querySelector('#gameTitle').textContent = g.title;
+          stage.innerHTML = '';
+          const iframe = document.createElement('iframe');
+          iframe.style.cssText = 'width:100%;height:100%;border:none;background:#0a080c';
+          iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock');
+          iframe.src = g.path;
+          stage.appendChild(iframe);
+        };
+        row.append(name, btn);
+        list.appendChild(row);
+      });
+    }
+
+    body.querySelector('#gameBack').onclick = () => {
+      list.style.display = 'block';
+      play.style.display = 'none';
+      stage.innerHTML = '';
+    };
+
+    (async () => {
+      const games = [];
+      const seen = new Set();
+
+      function addFile(href) {
+        let h = (href || '').replace(/\\/g, '/').split('?')[0].split('#')[0];
+        h = h.replace(/^\.\//, '');
+        if (!h || !/\.html?$/i.test(h)) return;
+        // only direct children of games/ (or bare filename)
+        const parts = h.replace(/^games\//, '').split('/');
+        if (parts.length !== 1) return; // skip nested for flat mode
+        const file = parts[0];
+        const key = file.toLowerCase();
+        if (seen.has(key) || file.toLowerCase() === 'index.html') return;
+        seen.add(key);
+        games.push({ title: titleFromFile(file), path: 'games/' + file, id: file });
+      }
+
+      // 1) Parse directory listing of games/
+      try {
+        const r = await fetch('games/?t=' + Date.now());
+        if (r.ok) {
+          const text = await r.text();
+          const re = /href\s*=\s*["']([^"']+)["']/gi;
+          let m;
+          while ((m = re.exec(text))) addFile(m[1]);
+        }
+      } catch (e) {}
+
+      // 2) Optional simple list file: one filename per line (handy on GitHub Pages)
+      try {
+        const r = await fetch('games/list.txt?t=' + Date.now());
+        if (r.ok) {
+          const text = await r.text();
+          text.split(/\r?\n/).forEach(line => {
+            const f = line.trim();
+            if (f && !f.startsWith('#')) addFile(f);
+          });
+        }
+      } catch (e) {}
+
+      // 3) Optional manifest still supported
+      try {
+        const r = await fetch('games/manifest.json?t=' + Date.now());
+        if (r.ok) {
+          const data = await r.json();
+          const arr = Array.isArray(data) ? data : (data.games || []);
+          arr.forEach(g => {
+            if (!g.path) return;
+            const file = g.path.replace(/^.*\//, '');
+            if (seen.has(file.toLowerCase())) return;
+            seen.add(file.toLowerCase());
+            games.push({ title: g.title || titleFromFile(file), path: g.path.startsWith('games/') ? g.path : 'games/' + g.path, id: file });
+          });
+        }
+      } catch (e) {}
+
+      games.sort((a, b) => a.title.localeCompare(b.title));
+      renderList(games);
+    })();
+  }
   if (id === 'about') {
     body.innerHTML = '<div class="about-body"><div class="about-mark">V</div><h2>Vision OS</h2><div class="ver">1.0 · by Akko</div><p>A desktop that lives in your browser. Drag windows, snap them, switch between Rias and Marin, talk to your pet.</p><p>Pure HTML. Everything saved locally.</p><div class="about-footer">RIAS · MARIN · AKKO</div></div>';
   }
