@@ -305,22 +305,9 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   display: block;
   opacity: 1;
 }
-#wallpaper::after {
-  content: '';
-  position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.25) 0%, transparent 28%, transparent 55%, rgba(0,0,0,.45) 100%),
-    linear-gradient(105deg, var(--bg) 0%, transparent 42%);
-  opacity: 0.85;
-}
-#desktop > .wall-shade {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none; display: none;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.25) 0%, transparent 28%, transparent 55%, rgba(0,0,0,.45) 100%),
-    linear-gradient(105deg, var(--bg) 0%, transparent 42%);
-  opacity: 0.85;
-}
-#desktop.has-wall-video > .wall-shade { display: block; }
+#wallpaper::after { display: none !important; content: none; }
+#desktop > .wall-shade { display: none !important; }
+#desktop.has-wall-video > .wall-shade { display: none !important; }
 #desktop.has-wall-video #wallpaper { opacity: 0 !important; }
 
 /* pet removed */
