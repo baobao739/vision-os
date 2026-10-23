@@ -1440,7 +1440,7 @@ const apps = {
   music:    { name:'Music',      w:860, h:640 },
   media:    { name:'Media',      w:880, h:560 },
   code:     { name:'Code Lab',   w:960, h:640 },
-  settings: { name:'Settings',   w:480, h:560 },
+  settings: { name:'Settings',   w:640, h:560 },
   gallery:  { name:'Gallery',    w:780, h:560 },
   calendar: { name:'Calendar',   w:400, h:420 },
   terminal: { name:'Terminal',   w:620, h:400 },
@@ -1455,7 +1455,8 @@ const apps = {
 
 let openWindows = {}, zCounter = 100, focusedId = null;
 let notesContent = STORE.get('notes', 'Vision OS\n\nYour space with Rias & Marin.\n\nNotes auto-save.');
-let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false });
+let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', proxyEnabled:false, theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false });
+if (typeof settingsState.proxyEnabled !== 'boolean') settingsState.proxyEnabled = false;
 if (typeof settingsState.autoFs !== 'boolean') settingsState.autoFs = false;
 if (typeof settingsState.cloak !== 'boolean') settingsState.cloak = false;
 if (typeof settingsState.cloakAuto !== 'boolean') settingsState.cloakAuto = false;
@@ -1849,7 +1850,12 @@ function finishBoot() {
     }
   } catch (e) {}
   try {
-    const seen = STORE.get('onboarded', false);
+    /* hide any leftover onboard panel */
+    try {
+      var op = document.getElementById('onboard');
+      if (op) { op.classList.remove('show'); op.style.display = 'none'; }
+    } catch (e0) {}
+    const seen = !!(STORE.get('onboarded', false) || window.__vosBootThemeDone);
     if (!seen) {
       startOnboarding();
     } else {
@@ -1984,7 +1990,6 @@ function runBoot() {
   if (bootEl) {
     bootEl.classList.add('boot-reveal');
     bootEl.classList.remove('boot-dim');
-    /* keep transparent so intro image/video shows; desktop stays under z-index */
   }
   setLine('Starting Vision OS…', 10);
 
@@ -1999,32 +2004,158 @@ function runBoot() {
     } catch (e) {}
   }, 600);
 
-  if (firstVisit) {
-    setTimeout(function() { setLine('Preparing setup…', 55); }, 1400);
-    setTimeout(function() { setLine('Almost ready…', 80); }, 2400);
-    setTimeout(function() { setLine('Welcome.', 100); }, 3400);
+  function waitForEnter() {
+    setLine('Press Enter or click to continue', 100);
+    var content = document.querySelector('.boot-content');
+    var hint = document.createElement('div');
+    hint.id = 'bootEnterHint';
+    hint.style.cssText = 'margin-top:18px;font-size:12px;color:rgba(255,255,255,.45);letter-spacing:1px;animation:bootPulse 2s ease-in-out infinite';
+    hint.textContent = 'Click anywhere or press Enter';
+    if (content && !document.getElementById('bootEnterHint')) content.appendChild(hint);
+    function go() {
+      if (done) return;
+      done = true;
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onClick);
+      finishBoot();
+    }
+    function onKey(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    }
+    function onClick() { go(); }
+    window.addEventListener('keydown', onKey);
     setTimeout(function() {
-      if (!done) { done = true; finishBoot(); }
-    }, 4200);
+      document.addEventListener('click', onClick);
+    }, 300);
+  }
+
+  function showBootThemePick() {
+    setLine('Choose your theme', 70);
+    var content = document.querySelector('.boot-content');
+    if (!content) { finishBoot(); return; }
+    /* remove old pick if any */
+    var old = document.getElementById('bootThemePick');
+    if (old) old.remove();
+    var oldBtn = document.getElementById('bootThemeFinish');
+    if (oldBtn) oldBtn.remove();
+    var wrap = document.createElement('div');
+    wrap.id = 'bootThemePick';
+    wrap.style.cssText = 'margin-top:22px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:420px';
+    var themes = [
+      { id: 'rias', name: 'Rias', sub: 'Crimson' },
+      { id: 'marin', name: 'Marin', sub: 'Pink' },
+      { id: 'makima', name: 'Makima', sub: 'Control' }
+    ];
+    var chosen = null;
+    var cards = [];
+    themes.forEach(function(th) {
+      var card = document.createElement('div');
+      card.className = 'boot-theme-card';
+      card.dataset.theme = th.id;
+      card.style.cssText = 'width:110px;padding:10px;border-radius:12px;border:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);cursor:pointer;text-align:center;transition:border-color .15s,transform .15s,box-shadow .15s';
+      var prev = document.createElement('div');
+      prev.style.cssText = 'height:56px;border-radius:8px;margin-bottom:8px;background:#1a1218;background-size:cover;background-position:center;pointer-events:none';
+      var stem = 'assets/' + th.id;
+      var img = new Image();
+      img.onload = function() { prev.style.backgroundImage = 'url("' + assetUrl(stem + '.png') + '?v=' + Date.now() + '")'; };
+      img.onerror = function() {
+        var j = new Image();
+        j.onload = function() { prev.style.backgroundImage = 'url("' + assetUrl(stem + '.jpg') + '?v=' + Date.now() + '")'; };
+        j.src = assetUrl(stem + '.jpg');
+      };
+      img.src = assetUrl(stem + '.png');
+      card.appendChild(prev);
+      var nm = document.createElement('div');
+      nm.style.cssText = 'font-size:13px;font-weight:600;color:#f5eef2;pointer-events:none';
+      nm.textContent = th.name;
+      var sub = document.createElement('div');
+      sub.style.cssText = 'font-size:10px;color:#8a7080;margin-top:2px;pointer-events:none';
+      sub.textContent = th.sub;
+      card.appendChild(nm);
+      card.appendChild(sub);
+      card.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        chosen = th.id;
+        cards.forEach(function(c) {
+          c.style.borderColor = 'rgba(255,255,255,.12)';
+          c.style.transform = 'scale(1)';
+          c.style.boxShadow = 'none';
+        });
+        card.style.borderColor = '#ff5a7a';
+        card.style.transform = 'scale(1.05)';
+        card.style.boxShadow = '0 0 0 1px #ff5a7a, 0 8px 24px rgba(255,90,122,.35)';
+        try { applyTheme(th.id); } catch (err) {}
+        finBtn.disabled = false;
+        finBtn.style.opacity = '1';
+        finBtn.style.cursor = 'pointer';
+      };
+      cards.push(card);
+      wrap.appendChild(card);
+    });
+    var finBtn = document.createElement('button');
+    finBtn.id = 'bootThemeFinish';
+    finBtn.type = 'button';
+    finBtn.textContent = 'Finish';
+    finBtn.disabled = true;
+    finBtn.style.cssText = 'display:block;margin:18px auto 0;padding:12px 28px;border-radius:12px;border:none;background:linear-gradient(135deg,#ff5a7a,#c41e3a);color:#fff;font-weight:600;font-size:13px;cursor:not-allowed;opacity:.4;letter-spacing:.5px';
+    finBtn.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!chosen || done) return;
+      finBtn.disabled = true;
+      finBtn.style.opacity = '0.5';
+      finBtn.textContent = '…';
+      try { applyTheme(chosen); } catch (err) {}
+      settingsState.theme = chosen;
+      currentTheme = chosen;
+      window.__vosBootThemeDone = true;
+      STORE.set('onboarded', true);
+      STORE.set('settings', settingsState);
+      /* hide theme cards while finishing */
+      try {
+        wrap.style.opacity = '0.35';
+        wrap.style.pointerEvents = 'none';
+        finBtn.style.display = 'none';
+      } catch (e2) {}
+      setLine('Adding finishing touches…', 90);
+      setTimeout(function() {
+        setLine('Welcome.', 100);
+      }, 900);
+      setTimeout(function() {
+        if (done) return;
+        done = true;
+        finishBoot();
+      }, 1800);
+    };
+    content.appendChild(wrap);
+    content.appendChild(finBtn);
+  }
+
+  if (firstVisit) {
+    setTimeout(function() { setLine('Preparing setup…', 45); }, 1200);
+    setTimeout(function() {
+      showBootThemePick();
+    }, 2200);
   } else {
     setTimeout(function() {
       setLine('Setting wallpaper…', 40);
       try { applyTheme(currentTheme || 'rias'); } catch (e) {}
       waitForWallpaper(5000).then(function() {
         setLine(wallReady ? 'Wallpaper ready' : 'Desktop ready', 65);
-        setTimeout(function() { setLine('Starting services…', 82); }, 800);
-        setTimeout(function() { setLine('Almost ready…', 92); }, 1600);
-        setTimeout(function() { setLine('Welcome.', 100); }, 2400);
-        setTimeout(function() {
-          if (!done) { done = true; finishBoot(); }
-        }, 3200);
+        setTimeout(function() { setLine('Starting services…', 82); }, 700);
+        setTimeout(function() { setLine('Almost ready…', 92); }, 1400);
+        setTimeout(function() { waitForEnter(); }, 2200);
       });
-    }, 1200);
+    }, 1000);
   }
 
   setTimeout(function() {
-    if (!done) { done = true; finishBoot(); }
-  }, 14000);
+    if (!done && !firstVisit) {
+      /* safety: still wait for user if stuck */
+      waitForEnter();
+    }
+  }, 16000);
 }
 
 function startOnboarding() {
@@ -2465,10 +2596,10 @@ function createBrowserUI(body) {
   const chrome = document.createElement('div'); chrome.className = 'ff-chrome';
   const tabsEl = document.createElement('div'); tabsEl.className = 'ff-tabs';
   const nav = document.createElement('div'); nav.className = 'ff-nav';
-  nav.innerHTML = '<button data-act="back">←</button><button data-act="fwd">→</button><button data-act="reload">↻</button><button data-act="home">⌂</button><div class="ff-urlwrap"><span class="ff-lock">PROXY</span><input class="ff-url" type="text" placeholder="Enter URL or search…" spellcheck="false"/></div><button class="ff-go" data-act="go">GO</button>';
+  nav.innerHTML = '<button data-act="back">←</button><button data-act="fwd">→</button><button data-act="reload">↻</button><button data-act="home">⌂</button><div class="ff-urlwrap"><span class="ff-lock">WEB</span><input class="ff-url" type="text" placeholder="Search Google or type a URL" spellcheck="false"/></div><button class="ff-go" data-act="go">Go</button>';
   const frameWrap = document.createElement('div'); frameWrap.className = 'ff-frame-wrap';
   const status = document.createElement('div'); status.className = 'ff-status';
-  status.textContent = (settingsState.proxyPrefix || '').trim() ? 'Proxy ready' : 'Set proxy prefix in Settings';
+  status.textContent = (settingsState.proxyEnabled && (settingsState.proxyPrefix || '').trim()) ? 'Proxy ready' : 'Type a search or URL · Enter';
   chrome.append(tabsEl, nav, frameWrap, status);
   body.appendChild(chrome);
   function renderTabs() {
@@ -2508,26 +2639,65 @@ function createBrowserUI(body) {
     t.iframe = iframe; frameWrap.appendChild(iframe);
     if (t.url) loadInto(iframe, t.url); else showHome(iframe);
   }
+  function useProxy() {
+    return !!(settingsState.proxyEnabled && (settingsState.proxyPrefix || '').trim());
+  }
   function showHome(iframe) {
-    const has = !!(settingsState.proxyPrefix || '').trim();
-    iframe.srcdoc = '<html><body style="margin:0;background:#0c0a0e;color:#a8909c;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;text-align:center;padding:24px"><div style="font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#e85a7a">Vision Browser</div><div style="font-size:12px;max-width:340px;line-height:1.7">' + (has ? 'Proxy is set. Type a URL and hit GO.' : 'No proxy prefix yet.<br>Open <b style="color:#ff8dc7">Settings</b> and paste your service URL.') + '</div></body></html>';
+    const prox = useProxy();
+    iframe.removeAttribute('src');
+    iframe.srcdoc = '<html><body style="margin:0;background:#0c0a0e;color:#c8b0bc;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px;text-align:center;padding:28px">' +
+      '<div style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#e85a7a;font-weight:600">Vision Browser</div>' +
+      '<div style="font-size:22px;font-weight:300;color:#f5eef2">Search the web</div>' +
+      '<div style="font-size:12px;max-width:380px;line-height:1.7;color:#8a7080">' +
+      (prox
+        ? 'Proxy is on. Type a URL or search and press Enter.'
+        : 'Type a search or URL and press Enter. Optional proxy is in Settings.') +
+      '</div></body></html>';
+    status.textContent = prox ? 'Proxy mode' : 'Direct mode · Enter to search';
+    nav.querySelector('.ff-lock').textContent = prox ? 'PROXY' : 'WEB';
   }
   function loadInto(iframe, url) {
-    const prefix = (settingsState.proxyPrefix || '').trim();
-    if (!prefix) { showHome(iframe); return; }
-    let p = prefix.endsWith('/') ? prefix : prefix + '/';
-    try { iframe.src = p + encodeURIComponent(url); } catch (e) {}
+    try { iframe.removeAttribute('srcdoc'); } catch (e) {}
+    if (useProxy()) {
+      var prefix = (settingsState.proxyPrefix || '').trim();
+      var p = prefix.endsWith('/') ? prefix : prefix + '/';
+      try { iframe.src = p + encodeURIComponent(url); } catch (e) {}
+      status.textContent = 'Proxy · ' + url;
+      return;
+    }
+    var src = url;
+    try {
+      if (/google\.com\/search/i.test(url) && url.indexOf('igu=') < 0) {
+        src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'igu=1';
+      }
+      iframe.src = src;
+      status.textContent = url;
+    } catch (e) {
+      status.textContent = 'Blocked';
+    }
   }
   function navigate(raw) {
-    let url = (raw || nav.querySelector('.ff-url').value || '').trim(); if (!url) return;
+    var input = (raw || nav.querySelector('.ff-url').value || '').trim();
+    if (!input) return;
+    var url = input;
     if (!/^https?:\/\//i.test(url)) {
-      if (url.includes('.') && !url.includes(' ')) url = 'https://' + url;
-      else url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+      if (/^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(url) && url.indexOf(' ') < 0) {
+        url = 'https://' + url;
+      } else {
+        url = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(input);
+      }
+    } else if (/google\.com\/search/i.test(url) && url.indexOf('igu=') < 0) {
+      url = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'igu=1';
     }
     const t = state.tabs[state.active];
-    t.url = url; t.title = url.replace(/^https?:\/\//, '').split('/')[0] || 'Tab';
-    t.history = t.history.slice(0, t.histIdx + 1); t.history.push(url); t.histIdx = t.history.length - 1;
-    nav.querySelector('.ff-url').value = url; renderTabs(); loadInto(t.iframe, url);
+    t.url = url;
+    t.title = input.length > 28 ? input.slice(0, 28) + '…' : input;
+    t.history = t.history.slice(0, t.histIdx + 1);
+    t.history.push(url);
+    t.histIdx = t.history.length - 1;
+    nav.querySelector('.ff-url').value = input;
+    renderTabs();
+    loadInto(t.iframe, url);
   }
   nav.querySelector('[data-act=go]').onclick = () => navigate();
   nav.querySelector('.ff-url').onkeydown = e => { if (e.key === 'Enter') navigate(); };
@@ -2537,8 +2707,12 @@ function createBrowserUI(body) {
   nav.querySelector('[data-act=fwd]').onclick = () => {
     const t = state.tabs[state.active]; if (t.histIdx < t.history.length - 1) { t.histIdx++; t.url = t.history[t.histIdx]; nav.querySelector('.ff-url').value = t.url; loadInto(t.iframe, t.url); }
   };
-  nav.querySelector('[data-act=reload]').onclick = () => { const t = state.tabs[state.active]; if (t.url) loadInto(t.iframe, t.url); };
-  nav.querySelector('[data-act=home]').onclick = () => { showHome(state.tabs[state.active].iframe); };
+  nav.querySelector('[data-act=reload]').onclick = () => {
+    const t = state.tabs[state.active]; if (t.url) loadInto(t.iframe, t.url); else showHome(t.iframe);
+  };
+  nav.querySelector('[data-act=home]').onclick = () => {
+    const t = state.tabs[state.active]; t.url = ''; t.title = 'New Tab'; nav.querySelector('.ff-url').value = ''; showHome(t.iframe); renderTabs();
+  };
   addTab();
 }
 
@@ -3267,57 +3441,71 @@ function renderAppContent(id) {
     print('Vision OS Terminal'); print('type help'); promptLine();
   }
   if (id === 'settings') {
+    body.style.padding = '0'; body.style.overflow = 'hidden';
     var blackUnlocked = !!(STORE.get('secretBlack', false) || settingsState.secretBlack);
     var blackCard = blackUnlocked
       ? ('<div class="theme-card ' + (currentTheme === 'black' ? 'active' : '') + '" data-theme="black">' +
          '<div class="tc-preview" data-prev="black" style="background:#000"></div>' +
          '<div class="tc-name">Black</div><div class="tc-desc">Void</div></div>')
       : '';
-    body.innerHTML = `
-      <div class="settings-body">
-        <div class="settings-section">
-          <h3>Theme</h3>
-          <div class="theme-pick">
-            <div class="theme-card ${currentTheme==='rias'?'active':''}" data-theme="rias">
-              <div class="tc-preview" data-prev="rias"></div>
-              <div class="tc-name">Rias</div>
-              <div class="tc-desc">Crimson</div>
-            </div>
-            <div class="theme-card ${currentTheme==='marin'?'active':''}" data-theme="marin">
-              <div class="tc-preview" data-prev="marin"></div>
-              <div class="tc-name">Marin</div>
-              <div class="tc-desc">Pink</div>
-            </div>
-            <div class="theme-card ${currentTheme==='makima'?'active':''}" data-theme="makima">
-              <div class="tc-preview" data-prev="makima"></div>
-              <div class="tc-name">Makima</div>
-              <div class="tc-desc">Control</div>
-            </div>
-            ${blackCard}
-          </div>
-        </div>
-        <div class="settings-section">
-          <h3>System</h3>
-          <div class="setting-row"><label>Notifications</label><div class="toggle ${settingsState.notif?'on':''}" id="tog-notif"></div></div>
-          <div class="setting-row"><label>Click to fullscreen</label><div class="toggle ${settingsState.autoFs?'on':''}" id="tog-fs"></div></div>
-        </div>
-        <div class="settings-section">
-          <h3>about:blank cloak</h3>
-          <div class="setting-row"><label>Enable cloak</label><div class="toggle ${settingsState.cloak?'on':''}" id="tog-cloak"></div></div>
-          <div class="setting-row"><label>Auto-open on visit</label><div class="toggle ${settingsState.cloakAuto?'on':''}" id="tog-cloak-auto"></div></div>
-          <p class="hint">Opens Vision OS in an about:blank window (address bar stays blank). Browser will ask to allow popups.</p>
-          <div class="setting-row" style="margin-top:8px"><label></label><button class="btn-danger" id="btn-cloak-open" style="background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">Open about:blank now</button></div>
-        </div>
-        <div class="settings-section">
-          <h3>Proxy (Browser)</h3>
-          <div class="setting-row"><label>Service prefix</label><input type="text" id="proxy-prefix" placeholder="https://your-instance.com/service/" value="${settingsState.proxyPrefix||''}"/></div>
-          <p class="hint">Paste your Ultraviolet or Scramjet service URL here. Required for the browser to load sites.</p>
-        </div>
-        <div class="settings-section">
-          <h3>Data</h3>
-          <div class="setting-row"><label>Clear local storage</label><button class="btn-danger" id="btn-clear">RESET</button></div>
-        </div>
-      </div>`;
+    body.innerHTML =
+      '<div style="height:100%;display:flex;background:var(--surface)">' +
+      '<div style="width:180px;flex-shrink:0;background:rgba(0,0,0,.25);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:4px">' +
+      '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--faint);padding:6px 10px 12px">SETTINGS</div>' +
+      '<button class="set-nav" data-pane="themes" style="text-align:left;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:var(--accent-soft);color:var(--text)">Themes</button>' +
+      '<button class="set-nav" data-pane="prefs" style="text-align:left;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--dim)">Preferences</button>' +
+      '<button class="set-nav" data-pane="cloak" style="text-align:left;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--dim)">Cloaking</button>' +
+      '<button class="set-nav" data-pane="proxy" style="text-align:left;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--dim)">Proxy</button>' +
+      '<button class="set-nav" data-pane="data" style="text-align:left;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--dim)">Data</button>' +
+      '</div>' +
+      '<div style="flex:1;overflow:auto;padding:20px 22px" id="setPane">' +
+      '<div data-pane-body="themes">' +
+      '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Themes</div>' +
+      '<div class="theme-pick">' +
+      '<div class="theme-card ' + (currentTheme==='rias'?'active':'') + '" data-theme="rias"><div class="tc-preview" data-prev="rias"></div><div class="tc-name">Rias</div><div class="tc-desc">Crimson</div></div>' +
+      '<div class="theme-card ' + (currentTheme==='marin'?'active':'') + '" data-theme="marin"><div class="tc-preview" data-prev="marin"></div><div class="tc-name">Marin</div><div class="tc-desc">Pink</div></div>' +
+      '<div class="theme-card ' + (currentTheme==='makima'?'active':'') + '" data-theme="makima"><div class="tc-preview" data-prev="makima"></div><div class="tc-name">Makima</div><div class="tc-desc">Control</div></div>' +
+      blackCard +
+      '</div></div>' +
+      '<div data-pane-body="prefs" style="display:none">' +
+      '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Preferences</div>' +
+      '<div class="setting-row"><label>Notifications</label><div class="toggle ' + (settingsState.notif?'on':'') + '" id="tog-notif"></div></div>' +
+      '<div class="setting-row"><label>Click to fullscreen</label><div class="toggle ' + (settingsState.autoFs?'on':'') + '" id="tog-fs"></div></div>' +
+      '</div>' +
+      '<div data-pane-body="cloak" style="display:none">' +
+      '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Cloaking</div>' +
+      '<div class="setting-row"><label>Enable cloak</label><div class="toggle ' + (settingsState.cloak?'on':'') + '" id="tog-cloak"></div></div>' +
+      '<div class="setting-row"><label>Auto-open on visit</label><div class="toggle ' + (settingsState.cloakAuto?'on':'') + '" id="tog-cloak-auto"></div></div>' +
+      '<p class="hint">Opens Vision OS in an about:blank window so the address bar stays blank. Browser will ask for popups.</p>' +
+      '<button id="btn-cloak-open" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;cursor:pointer;font-size:12px;font-weight:600">Open about:blank now</button>' +
+      '</div>' +
+      '<div data-pane-body="proxy" style="display:none">' +
+      '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Proxy</div>' +
+      '<div class="setting-row"><label>Use proxy in Browser</label><div class="toggle ' + (settingsState.proxyEnabled?'on':'') + '" id="tog-proxy"></div></div>' +
+      '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px"><label>Service prefix</label>' +
+      '<input type="text" id="proxy-prefix" placeholder="https://your-instance.com/service/" value="' + (settingsState.proxyPrefix||'').replace(/"/g,'&quot;') + '" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:12px"/></div>' +
+      '<p class="hint">Optional. Leave off to search/browse directly (Google search works in the iframe). Turn on and paste Ultraviolet / Scramjet prefix only if you need blocked sites.</p>' +
+      '</div>' +
+      '<div data-pane-body="data" style="display:none">' +
+      '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Data</div>' +
+      '<div class="setting-row"><label>Clear local storage</label><button class="btn-danger" id="btn-clear">RESET</button></div>' +
+      '</div></div></div>';
+
+    function showPane(name) {
+      body.querySelectorAll('[data-pane-body]').forEach(function(p) {
+        p.style.display = p.getAttribute('data-pane-body') === name ? 'block' : 'none';
+      });
+      body.querySelectorAll('.set-nav').forEach(function(b) {
+        var on = b.getAttribute('data-pane') === name;
+        b.style.background = on ? 'var(--accent-soft)' : 'transparent';
+        b.style.color = on ? 'var(--text)' : 'var(--dim)';
+        b.style.fontWeight = on ? '600' : '500';
+      });
+    }
+    body.querySelectorAll('.set-nav').forEach(function(b) {
+      b.onclick = function() { showPane(b.getAttribute('data-pane')); };
+    });
+
     function fillPreviews(root) {
       var bust = '?v=' + Date.now();
       (root || document).querySelectorAll('[data-prev]').forEach(function(el) {
@@ -3341,9 +3529,9 @@ function renderAppContent(id) {
       });
     }
     fillPreviews(body);
-    body.querySelectorAll('.theme-card').forEach(card => {
-      card.onclick = () => {
-        body.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+    body.querySelectorAll('.theme-card').forEach(function(card) {
+      card.onclick = function() {
+        body.querySelectorAll('.theme-card').forEach(function(c) { c.classList.remove('active'); });
         card.classList.add('active');
         applyTheme(card.dataset.theme);
         var tn = (PETS[card.dataset.theme] && PETS[card.dataset.theme].name) || card.dataset.theme;
@@ -3371,7 +3559,7 @@ function renderAppContent(id) {
         if (a) a.classList.remove('on');
       }
       STORE.set('settings', settingsState);
-      toast('CLOAK', settingsState.cloak ? 'Cloak on — reload to apply auto' : 'Cloak off');
+      toast('CLOAK', settingsState.cloak ? 'Cloak on' : 'Cloak off');
     };
     body.querySelector('#tog-cloak-auto').onclick = function() {
       this.classList.toggle('on');
@@ -3382,35 +3570,37 @@ function renderAppContent(id) {
         if (c) c.classList.add('on');
       }
       STORE.set('settings', settingsState);
-      toast('CLOAK', settingsState.cloakAuto ? 'Auto-open on — reload to use' : 'Auto-open off');
+      toast('CLOAK', settingsState.cloakAuto ? 'Auto-open on' : 'Auto-open off');
     };
     body.querySelector('#btn-cloak-open').onclick = function() {
       if (typeof window.__vosOpenBlank === 'function') {
         var ok = window.__vosOpenBlank();
         if (!ok) toast('POPUP', 'Allow popups, then try again');
         else toast('CLOAK', 'Opened about:blank');
-      } else {
-        toast('CLOAK', 'Reload the page first');
-      }
+      } else toast('CLOAK', 'Reload the page first');
     };
-    const pref = body.querySelector('#proxy-prefix');
+    body.querySelector('#tog-proxy').onclick = function() {
+      this.classList.toggle('on');
+      settingsState.proxyEnabled = this.classList.contains('on');
+      STORE.set('settings', settingsState);
+      toast('PROXY', settingsState.proxyEnabled ? 'Proxy on in Browser' : 'Proxy off — direct mode');
+    };
+    var pref = body.querySelector('#proxy-prefix');
     pref.onchange = pref.onblur = function() {
       settingsState.proxyPrefix = this.value.trim();
       STORE.set('settings', settingsState);
       toast('PROXY', settingsState.proxyPrefix ? 'Prefix saved' : 'Cleared');
     };
-    body.querySelector('#btn-clear').onclick = () => {
+    body.querySelector('#btn-clear').onclick = function() {
       if (confirm('Clear all Vision OS data?')) {
-        ['vos_notes','vos_settings'].forEach(k => localStorage.removeItem(k));
+        localStorage.clear();
         notesContent = 'Vision OS\n\nYour space.';
-        settingsState = { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false };
-        STORE.set('secretBlack', false);
+        settingsState = { notif:true, proxyPrefix:'', proxyEnabled:false, theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false };
         applyTheme('rias');
         toast('STORAGE', 'Cleared');
       }
     };
   }
-
 
   if (id === 'clock') {
     body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px"><div id="bigClock" style="font-size:48px;font-variant-numeric:tabular-nums;font-weight:300;letter-spacing:2px"></div><div id="bigDate" style="font-size:13px;color:var(--dim)"></div><div style="display:flex;gap:8px;margin-top:16px"><button id="timerBtn" style="padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px">+5 min timer</button></div><div id="timerDisp" style="font-size:14px;color:var(--accent);min-height:20px"></div></div>';
@@ -3856,47 +4046,56 @@ function renderAppContent(id) {
   }
 
   if (id === 'games') {
-    body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
-      '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
-      '<div style="font-size:15px;font-weight:600">Games</div>' +
-      '<div style="font-size:11px;color:var(--faint);margin-top:4px">Your library</div>' +
-      '</div>' +
-      '<div id="gamesList" style="flex:1;overflow:auto;padding:8px 12px"></div></div>';
+    body.style.padding = '0'; body.style.overflow = 'hidden';
+    body.innerHTML =
+      '<div style="height:100%;display:flex;flex-direction:column;background:var(--surface)">' +
+      '<div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">' +
+      '<div style="flex:1"><div style="font-size:16px;font-weight:700">Games</div>' +
+      '<div id="gamesCount" style="font-size:11px;color:var(--faint);margin-top:2px">Loading…</div></div></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:8px 12px">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
+      '<input id="gamesSearch" placeholder="Search games…" spellcheck="false" style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;outline:none"/></div></div>' +
+      '<div id="gamesList" style="flex:1;overflow:auto;padding:12px"></div></div>';
+
     const list = body.querySelector('#gamesList');
+    const searchEl = body.querySelector('#gamesSearch');
+    let allGames = [];
 
-    function titleFromFile(file, explicit) {
-      return titleFromStem(file, explicit);
-    }
-
-    function renderList(games) {
+    function renderList(filter) {
       list.innerHTML = '';
+      var q = (filter || '').trim().toLowerCase();
+      var games = allGames.filter(function(g) {
+        return !q || (g.title || '').toLowerCase().indexOf(q) >= 0 || (g.id || '').toLowerCase().indexOf(q) >= 0;
+      });
+      body.querySelector('#gamesCount').textContent = games.length + (games.length === 1 ? ' game' : ' games') +
+        (q ? ' found' : '');
       if (!games.length) {
-        list.innerHTML = '<div style="padding:28px 14px;color:var(--faint);font-size:12px;line-height:1.7">' +
-          'No games yet</div>';
+        list.innerHTML = '<div style="padding:36px 14px;text-align:center;color:var(--faint);font-size:13px">' +
+          (q ? 'No matches' : 'No games yet') + '<div style="font-size:11px;margin-top:8px">Add .html files to games/</div></div>';
         return;
       }
-      games.forEach(g => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:12px;margin-bottom:6px;transition:background .12s,transform .12s;border:1px solid var(--border);background:rgba(255,255,255,.02)';
-        row.onmouseenter = () => { row.style.background = 'var(--accent-soft)'; };
-        row.onmouseleave = () => { row.style.background = 'transparent'; };
-        const name = document.createElement('span');
-        name.style.cssText = 'font-size:13px;font-weight:500;color:var(--text)';
-        name.textContent = g.title;
-        const btn = document.createElement('button');
-        btn.textContent = 'Play';
-        btn.style.cssText = 'padding:6px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-        btn.onclick = (e) => {
-          e.stopPropagation();
-          openGameWindow(g.title, g.path);
-        };
-        row.appendChild(name);
-        row.appendChild(btn);
+      games.forEach(function(g) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;margin-bottom:8px;border:1px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;transition:background .12s';
+        row.onmouseenter = function() { row.style.background = 'var(--accent-soft)'; };
+        row.onmouseleave = function() { row.style.background = 'rgba(255,255,255,.02)'; };
+        row.innerHTML =
+          '<div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent-soft),rgba(255,255,255,.04));border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7"><path d="M6 12h4M8 10v4"/><path d="M15 11h.01M18 13h.01"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg></div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+          String(g.title).replace(/</g,'&lt;') + '</div>' +
+          '<div style="font-size:11px;color:var(--faint);margin-top:2px">' + String(g.id).replace(/</g,'&lt;') + '</div></div>' +
+          '<button data-play style="padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0">Play</button>';
+        function play() { openGameWindow(g.title, g.path); }
+        row.onclick = function(e) { if (!e.target.closest('[data-play]')) play(); };
+        row.querySelector('[data-play]').onclick = function(e) { e.stopPropagation(); play(); };
         list.appendChild(row);
       });
     }
+    searchEl.oninput = function() { renderList(searchEl.value); };
 
-    (async () => {
+    (async function() {
       const games = [];
       const seen = new Set();
       function add(file, path, title) {
@@ -3904,29 +4103,24 @@ function renderAppContent(id) {
         if (key === 'example.html' || key === 'index.html') return;
         if (seen.has(key)) {
           if (title) {
-            const i = games.findIndex(g => g.id.toLowerCase() === key);
+            const i = games.findIndex(function(g) { return g.id.toLowerCase() === key; });
             if (i >= 0) games[i].title = title;
           }
           return;
         }
         seen.add(key);
-        games.push({ title: titleFromFile(file, title), path: path || ('games/' + file), id: file });
+        games.push({ title: titleFromStem(file, title), path: path || ('games/' + file), id: file });
       }
-
       try {
         const r = await fetch(assetUrl('games/list.txt') + '?t=' + Date.now());
         if (r.ok) {
-          const text = await r.text();
-          text.split(/\r?\n/).forEach(line => {
+          (await r.text()).split(/\r?\n/).forEach(function(line) {
             const ent = parseListEntry(line);
-            if (!ent || !ent.file) return;
-            if (!/\.html?$/i.test(ent.file)) return;
-            if (/example\.html/i.test(ent.file)) return;
+            if (!ent || !ent.file || !/\.html?$/i.test(ent.file) || /example\.html/i.test(ent.file)) return;
             add(ent.file, 'games/' + ent.file, ent.title);
           });
         }
       } catch (e) {}
-
       try {
         const r = await fetch(assetUrl('games/') + '?t=' + Date.now());
         if (r.ok) {
@@ -3937,29 +4131,27 @@ function renderAppContent(id) {
             let h = m[1].replace(/\\/g, '/').split('?')[0].split('#')[0].replace(/^\.\//, '');
             if (!/\.html?$/i.test(h)) continue;
             const parts = h.replace(/^games\//, '').split('/');
-            if (parts.length !== 1) continue;
-            if (/example\.html/i.test(parts[0])) continue;
+            if (parts.length !== 1 || /example\.html/i.test(parts[0])) continue;
             add(parts[0], 'games/' + parts[0]);
           }
         }
       } catch (e) {}
-
       try {
         const r = await fetch(assetUrl('games/manifest.json') + '?t=' + Date.now());
         if (r.ok) {
           const data = await r.json();
           const arr = Array.isArray(data) ? data : (data.games || []);
-          arr.forEach(g => {
+          arr.forEach(function(g) {
             if (!g.path) return;
             const file = g.path.replace(/^.*\//, '');
             if (/example\.html/i.test(file)) return;
-            add(file, g.path.startsWith('games/') ? g.path : 'games/' + g.path);
+            add(file, g.path.startsWith('games/') ? g.path : 'games/' + g.path, g.title || null);
           });
         }
       } catch (e) {}
-
-      games.sort((a, b) => a.title.localeCompare(b.title));
-      renderList(games);
+      games.sort(function(a, b) { return a.title.localeCompare(b.title); });
+      allGames = games;
+      renderList('');
     })();
   }
 
