@@ -276,18 +276,30 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   background-position: center center;
   background-repeat: no-repeat;
   pointer-events: none;
-  transition: none;
+  transition: opacity .65s ease;
   opacity: 1;
 }
 #wallpaper.has-image { opacity: 1; }
+#wallpaperNext {
+  position:absolute; inset:0; z-index:0;
+  width: 100%; height: 100%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .7s cubic-bezier(.4,0,.2,1);
+  z-index: 0;
+}
+#wallpaperNext.fade-in { opacity: 1; }
 #wallpaperVideo {
   position:absolute; inset:0; z-index:0;
   width: 100%; height: 100%;
   object-fit: cover;
   pointer-events: none;
   display: none;
-  opacity: 1;
-  transition: none;
+  opacity: 0;
+  transition: opacity .7s cubic-bezier(.4,0,.2,1);
 }
 #wallpaperVideo.show {
   display: block;
@@ -999,6 +1011,7 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 <div id="desktop">
   <video id="wallpaperVideo" muted playsinline loop autoplay></video>
   <div id="wallpaper"></div>
+  <div id="wallpaperNext" aria-hidden="true"></div>
   <div class="wall-shade" aria-hidden="true"></div>
   <div id="topbar">
     <div class="top-left">
@@ -1626,9 +1639,27 @@ function assetUrl(rel) {
   return rel;
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, opts) {
+  opts = opts || {};
   if (theme === 'black' && !(STORE.get('secretBlack', false) || settingsState.secretBlack)) {
     theme = currentTheme === 'black' ? 'rias' : (currentTheme || 'rias');
+  }
+  const cfg = PETS[theme] || PETS.rias;
+  const wall = document.getElementById('wallpaper');
+  const desk = document.getElementById('desktop');
+  const wallVid = document.getElementById('wallpaperVideo');
+  const stem = String(cfg.wallpaper || ('assets/' + theme)).replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
+  /* skip full reload if already showing this theme's wallpaper */
+  if (!opts.force && window.__vosWallTheme === theme) {
+    const hasImg = wall && wall.classList.contains('has-image') && wall.style.backgroundImage && wall.style.backgroundImage !== 'none';
+    const hasVid = wallVid && wallVid.classList.contains('show');
+    if (hasImg || hasVid || theme === 'black') {
+      currentTheme = theme;
+      settingsState.theme = theme;
+      STORE.set('settings', settingsState);
+      document.documentElement.setAttribute('data-theme', (theme === 'rias' || !theme) ? '' : theme);
+      return;
+    }
   }
   currentTheme = theme;
   settingsState.theme = theme;
@@ -1637,17 +1668,8 @@ function applyTheme(theme) {
     'data-theme',
     (theme === 'rias' || !theme) ? '' : theme
   );
-  const cfg = PETS[theme] || PETS.rias;
-  const wall = document.getElementById('wallpaper');
-  const desk = document.getElementById('desktop');
-  const wallVid = document.getElementById('wallpaperVideo');
-  if (wall) {
-    wall.classList.remove('has-image');
-    wall.style.backgroundImage = 'none';
-  }
-
-  const bust = '?v=' + Date.now();
-  const stem = String(cfg.wallpaper || ('assets/' + theme)).replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
+  /* stable cache key — avoids black flash from re-fetching every time */
+  const bust = '?v=' + encodeURIComponent(stem);
 
   function clearWallVideo() {
     if (!wallVid) return;
@@ -1659,11 +1681,32 @@ function applyTheme(theme) {
   }
 
   function solidBlack() {
-    clearWallVideo();
-    if (wall) {
-      wall.style.backgroundImage = 'none';
-      wall.style.backgroundColor = '#000';
-      wall.classList.add('has-image');
+    var next = getWallNext ? getWallNext() : document.getElementById('wallpaperNext');
+    if (next) {
+      next.style.backgroundImage = 'none';
+      next.style.backgroundColor = '#000';
+      next.classList.remove('fade-in');
+      void next.offsetWidth;
+      next.classList.add('fade-in');
+      setTimeout(function() {
+        clearWallVideo();
+        if (wall) {
+          wall.style.backgroundImage = 'none';
+          wall.style.backgroundColor = '#000';
+          wall.classList.add('has-image');
+        }
+        next.classList.remove('fade-in');
+        next.style.backgroundColor = '';
+        window.__vosWallTheme = 'black';
+      }, 700);
+    } else {
+      clearWallVideo();
+      if (wall) {
+        wall.style.backgroundImage = 'none';
+        wall.style.backgroundColor = '#000';
+        wall.classList.add('has-image');
+      }
+      window.__vosWallTheme = 'black';
     }
     if (desk) desk.style.background = '#000';
     const root = document.documentElement.style;
@@ -1676,39 +1719,74 @@ function applyTheme(theme) {
     root.setProperty('--accent-soft', 'rgba(255,255,255,.12)');
   }
 
-  function useWallImage(url) {
-    clearWallVideo();
+  function getWallNext() {
+    return document.getElementById('wallpaperNext');
+  }
+
+  function crossfadeToImage(url, probeImg) {
+    var next = getWallNext();
     if (!wall) return;
-    const probe = new Image();
-    probe.onload = function() {
+    if (!next) {
+      clearWallVideo();
       wall.style.backgroundColor = '';
       wall.style.backgroundImage = 'url("' + url + '")';
       wall.classList.add('has-image');
-      try { extractColors(probe, applyExtractedColors); } catch (e) {}
+      window.__vosWallTheme = theme;
+      try { if (probeImg) extractColors(probeImg, applyExtractedColors); } catch (e) {}
+      return;
+    }
+    /* stage new wallpaper on top layer, then fade in */
+    next.style.backgroundColor = '';
+    next.style.backgroundImage = 'url("' + url + '")';
+    next.classList.remove('fade-in');
+    void next.offsetWidth;
+    next.classList.add('fade-in');
+    setTimeout(function() {
+      clearWallVideo();
+      wall.style.backgroundColor = '';
+      wall.style.backgroundImage = 'url("' + url + '")';
+      wall.classList.add('has-image');
+      next.classList.remove('fade-in');
+      next.style.backgroundImage = 'none';
+      window.__vosWallTheme = theme;
+      try { if (probeImg) extractColors(probeImg, applyExtractedColors); } catch (e) {}
+    }, 720);
+  }
+
+  function useWallImage(url) {
+    if (!wall) return;
+    const probe = new Image();
+    probe.onload = function() {
+      crossfadeToImage(url, probe);
     };
     probe.onerror = function() {
       if (theme === 'black') solidBlack();
-      else {
-        wall.style.backgroundImage = 'none';
-        wall.classList.remove('has-image');
-      }
     };
     probe.src = url;
   }
 
   function useWallVideo(url) {
     if (!wallVid) { tryImages(); return; }
-    if (wall) {
-      wall.style.backgroundImage = 'none';
-      wall.classList.remove('has-image');
-    }
     wallVid.onloadeddata = function() {
-      wallVid.classList.add('show');
-      if (desk) desk.classList.add('has-wall-video');
       wallVid.loop = true;
       wallVid.muted = true;
+      wallVid.classList.add('show');
+      if (desk) desk.classList.add('has-wall-video');
+      /* fade video in over current still */
+      wallVid.style.opacity = '0';
+      void wallVid.offsetWidth;
+      wallVid.style.opacity = '1';
       const p = wallVid.play();
       if (p && p.catch) p.catch(function() {});
+      setTimeout(function() {
+        if (wall) {
+          wall.style.backgroundImage = 'none';
+          wall.classList.remove('has-image');
+        }
+        var next = getWallNext();
+        if (next) { next.classList.remove('fade-in'); next.style.backgroundImage = 'none'; }
+        window.__vosWallTheme = theme;
+      }, 700);
     };
     wallVid.onerror = function() {
       clearWallVideo();
@@ -1757,13 +1835,7 @@ function applyTheme(theme) {
       const url = assetUrl(uniq[i++]) + bust;
       const probe = new Image();
       probe.onload = function() {
-        clearWallVideo();
-        if (wall) {
-          wall.style.backgroundColor = '';
-          wall.style.backgroundImage = 'url("' + url + '")';
-          wall.classList.add('has-image');
-        }
-        try { extractColors(probe, applyExtractedColors); } catch (e) {}
+        crossfadeToImage(url, probe);
       };
       probe.onerror = probeNext;
       probe.src = url;
@@ -1772,7 +1844,7 @@ function applyTheme(theme) {
     probeNext();
   }
 
-  clearWallVideo();
+  /* do NOT clear existing wallpaper until new asset is ready */
 
   if (theme === 'black') {
     /* try assets/black.* first, else pure black */
@@ -1859,7 +1931,7 @@ function finishBoot() {
     if (!seen) {
       startOnboarding();
     } else {
-      try { applyTheme(currentTheme || 'rias'); } catch (e2) {}
+      try { applyTheme(currentTheme || 'rias', { force: false }); } catch (e2) {}
       if (settingsState.notif) toast('SYSTEM', 'Ready');
       addNotif('Vision OS', 'Desktop ready');
     }
@@ -1961,29 +2033,37 @@ function runBoot() {
         if (finished) return;
         finished = true;
         wallReady = true;
-        resolve(true);
+        /* short settle so paint is on screen under boot */
+        setTimeout(function() { resolve(true); }, 200);
       }
-      var t = setTimeout(function() { ok(); }, timeoutMs || 5000);
-      if (vid) {
-        vid.addEventListener('loadeddata', function() {
-          if (vid.classList.contains('show')) { clearTimeout(t); ok(); }
-        });
+      function ready() {
+        if (vid && vid.classList.contains('show') && vid.readyState >= 2) return true;
+        if (wall && wall.classList.contains('has-image') && wall.style.backgroundImage && wall.style.backgroundImage !== 'none') return true;
+        if (window.__vosWallTheme) return true;
+        return false;
       }
-      if (wall) {
-        var obs = new MutationObserver(function() {
-          if (wall.classList.contains('has-image') || (wall.style.backgroundImage && wall.style.backgroundImage !== 'none')) {
-            clearTimeout(t);
-            ok();
-            try { obs.disconnect(); } catch (e) {}
-          }
-        });
-        obs.observe(wall, { attributes: true, attributeFilter: ['class', 'style'] });
-        if (wall.classList.contains('has-image') || (wall.style.backgroundImage && wall.style.backgroundImage !== 'none')) {
+      if (ready()) { ok(); return; }
+      var t = setTimeout(function() { ok(); }, timeoutMs || 8000);
+      function check() {
+        if (ready()) {
           clearTimeout(t);
           ok();
-          try { obs.disconnect(); } catch (e) {}
+          return true;
         }
+        return false;
       }
+      if (vid) {
+        vid.addEventListener('loadeddata', check);
+        vid.addEventListener('playing', check);
+      }
+      if (wall) {
+        var obs = new MutationObserver(function() { if (check()) try { obs.disconnect(); } catch (e) {} });
+        obs.observe(wall, { attributes: true, attributeFilter: ['class', 'style'] });
+      }
+      var poll = setInterval(function() {
+        if (check()) clearInterval(poll);
+      }, 150);
+      setTimeout(function() { clearInterval(poll); }, timeoutMs || 8000);
     });
   }
 
@@ -2140,14 +2220,14 @@ function runBoot() {
   } else {
     setTimeout(function() {
       setLine('Setting wallpaper…', 40);
-      try { applyTheme(currentTheme || 'rias'); } catch (e) {}
-      waitForWallpaper(5000).then(function() {
-        setLine(wallReady ? 'Wallpaper ready' : 'Desktop ready', 65);
-        setTimeout(function() { setLine('Starting services…', 82); }, 700);
-        setTimeout(function() { setLine('Almost ready…', 92); }, 1400);
-        setTimeout(function() { waitForEnter(); }, 2200);
+      try { applyTheme(currentTheme || 'rias', { force: true }); } catch (e) {}
+      waitForWallpaper(10000).then(function() {
+        setLine(wallReady ? 'Wallpaper ready' : 'Desktop ready', 70);
+        setTimeout(function() { setLine('Starting services…', 85); }, 800);
+        setTimeout(function() { setLine('Almost ready…', 95); }, 1600);
+        setTimeout(function() { waitForEnter(); }, 2400);
       });
-    }, 1000);
+    }, 800);
   }
 
   setTimeout(function() {
