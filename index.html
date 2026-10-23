@@ -81,14 +81,6 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   background: #0a080c;
   overflow: hidden;
 }
-#boot.boot-dim {
-  background: rgba(10,8,12,.55);
-}
-#boot.boot-dim .boot-bg,
-#boot.boot-dim #bootVideo {
-  opacity: 0.35 !important;
-  transition: opacity .8s ease;
-}
 #boot.hidden { opacity:0; visibility:hidden; pointer-events:none }
 #boot.boot-reveal .boot-content { animation: bootContentIn 1.2s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes bootContentIn {
@@ -1456,7 +1448,7 @@ const apps = {
   tasks:    { name:'Tasks',      w:400, h:480 },
   paint:    { name:'Paint',      w:720, h:520 },
   clock:    { name:'Clock',      w:360, h:320 },
-  weather:  { name:'Weather',    w:400, h:400 },
+  weather:  { name:'Weather',    w:520, h:620 },
   about:    { name:'About',      w:420, h:380 },
   games:    { name:'Games',      w:640, h:580 }
 };
@@ -1857,14 +1849,11 @@ function finishBoot() {
     }
   } catch (e) {}
   try {
-    /* theme already applied mid-boot; refresh once more */
-    applyTheme(currentTheme || 'rias');
-  } catch (e) { console.warn('theme', e); }
-  try {
     const seen = STORE.get('onboarded', false);
     if (!seen) {
       startOnboarding();
     } else {
+      try { applyTheme(currentTheme || 'rias'); } catch (e2) {}
       if (settingsState.notif) toast('SYSTEM', 'Ready');
       addNotif('Vision OS', 'Desktop ready');
     }
@@ -1992,42 +1981,46 @@ function runBoot() {
     });
   }
 
-  if (bootEl) bootEl.classList.add('boot-reveal');
-  setLine('Starting Vision OS…', 8);
+  if (bootEl) {
+    bootEl.classList.add('boot-reveal');
+    bootEl.classList.remove('boot-dim');
+    /* keep transparent so intro image/video shows; desktop stays under z-index */
+  }
+  setLine('Starting Vision OS…', 10);
+
+  var firstVisit = !STORE.get('onboarded', false);
 
   setTimeout(function() {
-    setLine('Loading desktop…', 18);
+    setLine('Loading desktop…', 25);
     try {
       renderDesktopIcons();
       renderStartMenu();
       updateClock();
     } catch (e) {}
-  }, 700);
+  }, 600);
 
-  setTimeout(function() {
-    setLine('Setting wallpaper…', 35);
-    try { applyTheme(currentTheme || 'rias'); } catch (e) {}
-    /* fade boot so real wallpaper shows underneath */
+  if (firstVisit) {
+    setTimeout(function() { setLine('Preparing setup…', 55); }, 1400);
+    setTimeout(function() { setLine('Almost ready…', 80); }, 2400);
+    setTimeout(function() { setLine('Welcome.', 100); }, 3400);
     setTimeout(function() {
-      if (bootEl) bootEl.classList.add('boot-dim');
-    }, 400);
-
-    waitForWallpaper(6000).then(function() {
-      setLine(wallReady ? 'Wallpaper ready' : 'Using solid background', 60);
-      setTimeout(function() {
-        setLine('Starting services…', 75);
-      }, 900);
-      setTimeout(function() {
-        setLine('Almost ready…', 90);
-      }, 1800);
-      setTimeout(function() {
-        setLine('Welcome.', 100);
-      }, 2600);
-      setTimeout(function() {
-        if (!done) { done = true; finishBoot(); }
-      }, 3600);
-    });
-  }, 1400);
+      if (!done) { done = true; finishBoot(); }
+    }, 4200);
+  } else {
+    setTimeout(function() {
+      setLine('Setting wallpaper…', 40);
+      try { applyTheme(currentTheme || 'rias'); } catch (e) {}
+      waitForWallpaper(5000).then(function() {
+        setLine(wallReady ? 'Wallpaper ready' : 'Desktop ready', 65);
+        setTimeout(function() { setLine('Starting services…', 82); }, 800);
+        setTimeout(function() { setLine('Almost ready…', 92); }, 1600);
+        setTimeout(function() { setLine('Welcome.', 100); }, 2400);
+        setTimeout(function() {
+          if (!done) { done = true; finishBoot(); }
+        }, 3200);
+      });
+    }, 1200);
+  }
 
   setTimeout(function() {
     if (!done) { done = true; finishBoot(); }
@@ -2677,7 +2670,33 @@ function renderAppContent(id) {
       tryNext();
     })();
 
-    const colors = ['#2d7ff9', '#e83a5a', '#16c784', '#f5a623', '#9b59ff', '#00c2d4'];
+    function themePalette() {
+      var cs = getComputedStyle(document.documentElement);
+      var a = (cs.getPropertyValue('--accent') || '#ff5a7a').trim();
+      var a2 = (cs.getPropertyValue('--accent2') || a).trim();
+      function hexToRgb(h) {
+        h = String(h).replace('#','');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        if (h.length !== 6) return {r:255,g:90,b:122};
+        return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+      }
+      function rgbToHex(r,g,b) {
+        return '#' + [r,g,b].map(function(v) {
+          v = Math.max(0, Math.min(255, v|0));
+          return v.toString(16).padStart(2,'0');
+        }).join('');
+      }
+      function shift(hex, dr, dg, db) {
+        var c = hexToRgb(hex);
+        return rgbToHex(c.r + dr, c.g + dg, c.b + db);
+      }
+      function lighten(hex, amt) {
+        var c = hexToRgb(hex);
+        return rgbToHex(c.r + (255-c.r)*amt, c.g + (255-c.g)*amt, c.b + (255-c.b)*amt);
+      }
+      return [a, a2, lighten(a, 0.25), shift(a, 40, -20, 60), shift(a2, -30, 50, 40), lighten(a2, 0.35)];
+    }
+    const colors = themePalette();
     let exprs = [{ id: 1, text: '', on: true }];
     let nextId = 2;
     let view = { xMin: -10, xMax: 10, yMin: -6, yMax: 6 };
@@ -3415,18 +3434,38 @@ function renderAppContent(id) {
     };
   }
   if (id === 'weather') {
-    body.innerHTML = '<div style="padding:20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center">' +
-      '<div style="font-size:11px;letter-spacing:2px;color:var(--faint);text-transform:uppercase" id="wxPlace">Locating…</div>' +
-      '<div style="font-size:56px;font-weight:200" id="wxTemp">--°</div>' +
-      '<div style="font-size:14px;color:var(--dim)" id="wxDesc">—</div>' +
-      '<div style="display:flex;gap:20px;margin-top:16px;font-size:12px;color:var(--faint)">' +
-      '<span id="wxH">Humidity --</span><span id="wxW">Wind --</span></div>' +
-      '<button id="wxRefresh" style="margin-top:16px;padding:8px 18px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px">Refresh</button>' +
-      '<div style="font-size:10px;color:var(--faint);margin-top:8px" id="wxNote">Uses your location · Open-Meteo</div></div>';
+    body.style.padding = '0'; body.style.overflow = 'hidden';
+    body.innerHTML =
+      '<div style="height:100%;display:flex;flex-direction:column;background:linear-gradient(165deg,#1a1020 0%,#0e0c12 45%,#121018 100%);overflow:hidden">' +
+      '<div style="padding:22px 22px 12px">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
+      '<div><div id="wxPlace" style="font-size:13px;font-weight:600;color:var(--text)">Locating…</div>' +
+      '<div id="wxUpdated" style="font-size:11px;color:var(--faint);margin-top:4px">—</div></div>' +
+      '<button id="wxRefresh" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:var(--dim);cursor:pointer;font-size:11px;flex-shrink:0">Refresh</button></div>' +
+      '<div style="display:flex;align-items:center;gap:18px;margin-top:18px">' +
+      '<div id="wxIcon" style="font-size:64px;line-height:1;filter:drop-shadow(0 8px 24px rgba(0,0,0,.4))">☀</div>' +
+      '<div><div id="wxTemp" style="font-size:64px;font-weight:200;letter-spacing:-2px;line-height:1">--°</div>' +
+      '<div id="wxDesc" style="font-size:15px;color:var(--dim);margin-top:4px">—</div>' +
+      '<div id="wxFeels" style="font-size:12px;color:var(--faint);margin-top:4px"></div></div></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px">' +
+      '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;text-align:center">' +
+      '<div style="font-size:10px;color:var(--faint);letter-spacing:1px;text-transform:uppercase">Humidity</div>' +
+      '<div id="wxH" style="font-size:18px;font-weight:600;margin-top:6px">--</div></div>' +
+      '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;text-align:center">' +
+      '<div style="font-size:10px;color:var(--faint);letter-spacing:1px;text-transform:uppercase">Wind</div>' +
+      '<div id="wxW" style="font-size:18px;font-weight:600;margin-top:6px">--</div></div>' +
+      '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px;text-align:center">' +
+      '<div style="font-size:10px;color:var(--faint);letter-spacing:1px;text-transform:uppercase">UV</div>' +
+      '<div id="wxUv" style="font-size:18px;font-weight:600;margin-top:6px">--</div></div></div></div>' +
+      '<div style="padding:0 22px 8px"><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--faint);text-transform:uppercase;margin-bottom:10px">Hourly</div>' +
+      '<div id="wxHourly" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin"></div></div>' +
+      '<div style="flex:1;overflow:auto;padding:8px 22px 20px"><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--faint);text-transform:uppercase;margin-bottom:10px">7-day</div>' +
+      '<div id="wxDaily" style="display:flex;flex-direction:column;gap:6px"></div>' +
+      '<div id="wxNote" style="font-size:10px;color:var(--faint);margin-top:14px;text-align:center">Open-Meteo</div></div></div>';
 
     function codeText(c) {
       c = +c;
-      if (c === 0) return 'Clear sky';
+      if (c === 0) return 'Clear';
       if (c === 1) return 'Mainly clear';
       if (c === 2) return 'Partly cloudy';
       if (c === 3) return 'Overcast';
@@ -3434,44 +3473,110 @@ function renderAppContent(id) {
       if (c >= 51 && c <= 57) return 'Drizzle';
       if (c >= 61 && c <= 67) return 'Rain';
       if (c >= 71 && c <= 77) return 'Snow';
-      if (c >= 80 && c <= 82) return 'Rain showers';
+      if (c >= 80 && c <= 82) return 'Showers';
       if (c >= 85 && c <= 86) return 'Snow showers';
       if (c >= 95) return 'Thunderstorm';
       return 'Weather';
     }
+    function codeIcon(c) {
+      c = +c;
+      if (c === 0 || c === 1) return '☀';
+      if (c === 2) return '⛅';
+      if (c === 3) return '☁';
+      if (c === 45 || c === 48) return '🌫';
+      if (c >= 51 && c <= 67) return '🌧';
+      if (c >= 71 && c <= 77) return '❄';
+      if (c >= 80 && c <= 82) return '🌦';
+      if (c >= 85 && c <= 86) return '🌨';
+      if (c >= 95) return '⛈';
+      return '🌤';
+    }
+    function pad(n) { return String(n).padStart(2, '0'); }
 
-    function applyWx(data, label) {
-      const cur = data.current || {};
-      const t = cur.temperature_2m;
-      body.querySelector('#wxTemp').textContent = (t != null ? Math.round(t) : '--') + '°';
-      body.querySelector('#wxDesc').textContent = codeText(cur.weather_code);
-      body.querySelector('#wxH').textContent = 'Humidity ' + (cur.relative_humidity_2m != null ? cur.relative_humidity_2m + '%' : '--');
-      body.querySelector('#wxW').textContent = 'Wind ' + (cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + ' mph' : '--');
-      if (label) body.querySelector('#wxPlace').textContent = label;
+    function renderHourly(data) {
+      var box = body.querySelector('#wxHourly');
+      box.innerHTML = '';
+      var h = data.hourly || {};
+      var times = h.time || [];
+      var temps = h.temperature_2m || [];
+      var codes = h.weather_code || [];
+      var now = Date.now();
+      var shown = 0;
+      for (var i = 0; i < times.length && shown < 24; i++) {
+        var t = new Date(times[i]);
+        if (t.getTime() < now - 3600000) continue;
+        var el = document.createElement('div');
+        el.style.cssText = 'min-width:56px;padding:10px 8px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);text-align:center;flex-shrink:0';
+        el.innerHTML = '<div style="font-size:10px;color:var(--faint)">' + pad(t.getHours()) + ':00</div>' +
+          '<div style="font-size:20px;margin:6px 0">' + codeIcon(codes[i]) + '</div>' +
+          '<div style="font-size:13px;font-weight:600">' + Math.round(temps[i]) + '°</div>';
+        box.appendChild(el);
+        shown++;
+      }
+    }
+    function renderDaily(data) {
+      var box = body.querySelector('#wxDaily');
+      box.innerHTML = '';
+      var d = data.daily || {};
+      var times = d.time || [];
+      var maxs = d.temperature_2m_max || [];
+      var mins = d.temperature_2m_min || [];
+      var codes = d.weather_code || [];
+      var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      for (var i = 0; i < times.length && i < 7; i++) {
+        var dt = new Date(times[i] + 'T12:00:00');
+        var row = document.createElement('div');
+        row.style.cssText = 'display:grid;grid-template-columns:52px 36px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05)';
+        var label = i === 0 ? 'Today' : days[dt.getDay()];
+        var lo = Math.round(mins[i]), hi = Math.round(maxs[i]);
+        row.innerHTML = '<div style="font-size:13px;font-weight:600">' + label + '</div>' +
+          '<div style="font-size:20px">' + codeIcon(codes[i]) + '</div>' +
+          '<div style="height:4px;border-radius:2px;background:linear-gradient(90deg,var(--accent2),var(--accent));opacity:.7"></div>' +
+          '<div style="font-size:13px;color:var(--dim);white-space:nowrap"><span style="color:var(--text);font-weight:600">' + hi + '°</span> / ' + lo + '°</div>';
+        box.appendChild(row);
+      }
     }
 
     async function fetchWx(lat, lon, label) {
       body.querySelector('#wxDesc').textContent = 'Loading…';
-      const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
         '&longitude=' + lon +
-        '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m' +
-        '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto';
-      const r = await fetch(url);
+        '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,uv_index' +
+        '&hourly=temperature_2m,weather_code' +
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+        '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=7';
+      var r = await fetch(url);
       if (!r.ok) throw new Error('weather ' + r.status);
-      const data = await r.json();
-      applyWx(data, label || (lat.toFixed(2) + ', ' + lon.toFixed(2)));
+      var data = await r.json();
+      var cur = data.current || {};
+      body.querySelector('#wxTemp').textContent = (cur.temperature_2m != null ? Math.round(cur.temperature_2m) : '--') + '°';
+      body.querySelector('#wxDesc').textContent = codeText(cur.weather_code);
+      body.querySelector('#wxIcon').textContent = codeIcon(cur.weather_code);
+      body.querySelector('#wxH').textContent = (cur.relative_humidity_2m != null ? cur.relative_humidity_2m + '%' : '--');
+      body.querySelector('#wxW').textContent = (cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + ' mph' : '--');
+      body.querySelector('#wxUv').textContent = (cur.uv_index != null ? Math.round(cur.uv_index) : '--');
+      if (cur.apparent_temperature != null) {
+        body.querySelector('#wxFeels').textContent = 'Feels like ' + Math.round(cur.apparent_temperature) + '°';
+      }
+      if (label) body.querySelector('#wxPlace').textContent = label;
+      body.querySelector('#wxUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      renderHourly(data);
+      renderDaily(data);
+      body.querySelector('#wxNote').textContent = 'Open-Meteo · live data';
+    }
+
+    async function reverseLabel(lat, lon) {
       try {
-        // reverse-ish place name via open-meteo geocoding reverse is limited; keep coords or use timezone
-        if (data.timezone) body.querySelector('#wxPlace').textContent = label || data.timezone.replace(/_/g, ' ');
+        var r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(lat.toFixed(2) + ',' + lon.toFixed(2)) + '&count=1');
+        /* open-meteo geocoding needs place name; use approx */
       } catch (e) {}
+      return 'Near you';
     }
 
     function loadWx() {
       body.querySelector('#wxPlace').textContent = 'Locating…';
-      body.querySelector('#wxNote').textContent = 'Uses your location · Open-Meteo';
       if (!navigator.geolocation) {
-        // Garland, TX fallback (user area) if no geo API
-        fetchWx(32.9126, -96.6389, 'Garland area').catch(function(e) {
+        fetchWx(32.9126, -96.6389, 'Garland, TX').catch(function(e) {
           body.querySelector('#wxDesc').textContent = 'Could not load weather';
           body.querySelector('#wxNote').textContent = String(e.message || e);
         });
@@ -3479,16 +3584,15 @@ function renderAppContent(id) {
       }
       navigator.geolocation.getCurrentPosition(
         function(pos) {
-          const lat = pos.coords.latitude, lon = pos.coords.longitude;
+          var lat = pos.coords.latitude, lon = pos.coords.longitude;
           fetchWx(lat, lon, 'Near you').catch(function(e) {
             body.querySelector('#wxDesc').textContent = 'Could not load weather';
             body.querySelector('#wxNote').textContent = String(e.message || e);
           });
         },
-        function(err) {
-          // permission denied or error → fallback
-          body.querySelector('#wxNote').textContent = 'Location blocked — showing Garland area';
-          fetchWx(32.9126, -96.6389, 'Garland, TX').catch(function(e) {
+        function() {
+          body.querySelector('#wxNote').textContent = 'Location blocked — Garland area';
+          fetchWx(32.9126, -96.6389, 'Garland, TX').catch(function() {
             body.querySelector('#wxDesc').textContent = 'Could not load weather';
           });
         },
@@ -3499,6 +3603,7 @@ function renderAppContent(id) {
     body.querySelector('#wxRefresh').onclick = loadWx;
   }
   if (id === 'paint') {
+
     body.style.padding = '0'; body.style.overflow = 'hidden';
     body.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;background:#0e0c10">' +
       '<div style="padding:8px 12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)">' +
