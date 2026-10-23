@@ -369,12 +369,7 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   box-shadow: 2px 2px 4px rgba(0,0,0,.15);
 }
 
-#topbar {
-  position:fixed; top:0; left:0; right:0; height:36px;
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 18px; background:rgba(10,8,12,.78); backdrop-filter:blur(24px) saturate(1.2);
-  border-bottom:1px solid rgba(255,255,255,.06); z-index:900; font-size:12px;
-}
+#topbar { display: none !important; height: 0 !important; overflow: hidden; pointer-events: none; }
 .top-left, .top-right { display:flex; align-items:center; gap:14px }
 .top-brand { font-weight:600; letter-spacing:1px; cursor:pointer; color:var(--accent) }
 .top-brand:hover { color:#fff }
@@ -437,11 +432,21 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   filter: none;
   transition: stroke .12s;
 }
-.dock-item:hover svg, .dock-item.active svg { stroke: var(--accent); }
-.dock-item.active::after {
-  content:''; position:absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
-  width: 4px; height: 4px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 8px var(--accent); z-index: 2;
+.dock-item:hover svg, .dock-item.active svg, .dock-item.open svg { stroke: var(--accent); }
+.dock-item.open::after {
+  content:''; position:absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.55); z-index: 2;
+  transition: width .2s ease, background .2s ease;
+}
+.dock-item.open.active::after {
+  width: 22px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--glow);
+}
+.dock-item.open.minimized-app::after {
+  width: 10px;
+  background: rgba(255,255,255,.35);
 }
 .dock-sep {
   width: 1px; height: 22px; background: rgba(255,255,255,.1); margin: 0 8px; flex-shrink: 0;
@@ -519,7 +524,25 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   border-color: rgba(255,90,122,.35); z-index:200;
   box-shadow: 0 32px 80px rgba(0,0,0,.85), 0 0 0 1px rgba(255,90,122,.15), 0 0 40px var(--glow);
 }
-.window.minimized { display:none!important }
+.window.minimizing {
+  opacity: 0 !important;
+  transform: scale(0.55) translateY(30vh) !important;
+  pointer-events: none !important;
+  transition: opacity .32s cubic-bezier(.4,0,.2,1), transform .32s cubic-bezier(.4,0,.2,1) !important;
+}
+.window.minimized {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: scale(0.55) translateY(30vh) !important;
+}
+.window.restoring {
+  animation: winRestore .34s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes winRestore {
+  from { opacity: 0; transform: scale(0.55) translateY(30vh); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
 .window {
   transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1),
     left .32s cubic-bezier(.2,.8,.2,1), top .32s cubic-bezier(.2,.8,.2,1),
@@ -532,11 +555,11 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   transform: none !important;
 }
 .window.maximized {
-  top:36px!important; left:0!important; width:100%!important;
-  height:calc(100% - 36px - 48px)!important; border-radius:12px;
+  top:0!important; left:0!important; width:100%!important;
+  height:calc(100% - 48px)!important; border-radius:12px;
 }
-.window.snap-left { top:36px!important; left:0!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-right { top:36px!important; left:50%!important; width:50%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
+.window.snap-left { top:0!important; left:0!important; width:50%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-right { top:0!important; left:50%!important; width:50%!important; height:calc(100% - 48px)!important; border-radius:12px }
 .titlebar {
   height:36px; display:flex; align-items:center; padding:0 0 0 14px;
   background:rgba(0,0,0,.28); border-bottom:1px solid rgba(255,255,255,.05);
@@ -658,22 +681,22 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   grid-template-rows: 1fr;
 }
 
-.window.snap-tl { top:36px!important; left:0!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-tr { top:36px!important; left:50%!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-bl { top:calc(36px + (100% - 36px - 48px)/2)!important; left:0!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-br { top:calc(36px + (100% - 36px - 48px)/2)!important; left:50%!important; width:50%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-top { top:36px!important; left:0!important; width:100%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-bottom { top:calc(36px + (100% - 36px - 48px)/2)!important; left:0!important; width:100%!important; height:calc((100% - 36px - 48px)/2)!important; border-radius:12px }
-.window.snap-third-l { top:36px!important; left:0!important; width:33.333%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-third-c { top:36px!important; left:33.333%!important; width:33.333%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-third-r { top:36px!important; left:66.666%!important; width:33.333%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-row-t { top:36px!important; left:0!important; width:100%!important; height:calc((100% - 36px - 48px)/3)!important; border-radius:12px }
-.window.snap-row-m { top:calc(36px + (100% - 36px - 48px)/3)!important; left:0!important; width:100%!important; height:calc((100% - 36px - 48px)/3)!important; border-radius:12px }
-.window.snap-row-b { top:calc(36px + 2*(100% - 36px - 48px)/3)!important; left:0!important; width:100%!important; height:calc((100% - 36px - 48px)/3)!important; border-radius:12px }
-.window.snap-q1 { top:36px!important; left:0!important; width:25%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-q2 { top:36px!important; left:25%!important; width:25%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-q3 { top:36px!important; left:50%!important; width:25%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
-.window.snap-q4 { top:36px!important; left:75%!important; width:25%!important; height:calc(100% - 36px - 48px)!important; border-radius:12px }
+.window.snap-tl { top:0!important; left:0!important; width:50%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-tr { top:0!important; left:50%!important; width:50%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-bl { top:calc((100% - 48px)/2)!important; left:0!important; width:50%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-br { top:calc((100% - 48px)/2)!important; left:50%!important; width:50%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-top { top:0!important; left:0!important; width:100%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-bottom { top:calc((100% - 48px)/2)!important; left:0!important; width:100%!important; height:calc((100% - 48px)/2)!important; border-radius:12px }
+.window.snap-third-l { top:0!important; left:0!important; width:33.333%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-third-c { top:0!important; left:33.333%!important; width:33.333%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-third-r { top:0!important; left:66.666%!important; width:33.333%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-row-t { top:0!important; left:0!important; width:100%!important; height:calc((100% - 48px)/3)!important; border-radius:12px }
+.window.snap-row-m { top:calc((100% - 48px)/3)!important; left:0!important; width:100%!important; height:calc((100% - 48px)/3)!important; border-radius:12px }
+.window.snap-row-b { top:calc(2*(100% - 48px)/3)!important; left:0!important; width:100%!important; height:calc((100% - 48px)/3)!important; border-radius:12px }
+.window.snap-q1 { top:0!important; left:0!important; width:25%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-q2 { top:0!important; left:25%!important; width:25%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-q3 { top:0!important; left:50%!important; width:25%!important; height:calc(100% - 48px)!important; border-radius:12px }
+.window.snap-q4 { top:0!important; left:75%!important; width:25%!important; height:calc(100% - 48px)!important; border-radius:12px }
 
 .window-body { flex:1; overflow:hidden; position:relative; background:var(--surface); display:flex; flex-direction:column }
 .resize-handle { position:absolute; z-index:10 }
@@ -1012,6 +1035,8 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
     <div class="dock-sep"></div>
     <div class="dock-item" data-app="settings" data-tip="Settings"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
     <div class="dock-item" id="startBtn" data-tip="Launch"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+    <div class="dock-sep"></div>
+    <div id="dockClock" style="padding:0 10px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;user-select:none;white-space:nowrap">00:00</div>
   </div>
 </div>
 
@@ -1430,8 +1455,8 @@ const apps = {
 
 let openWindows = {}, zCounter = 100, focusedId = null;
 let notesContent = STORE.get('notes', 'Vision OS\n\nYour space with Rias & Marin.\n\nNotes auto-save.');
-let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:true });
-if (typeof settingsState.autoFs !== 'boolean') settingsState.autoFs = true;
+let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false });
+if (typeof settingsState.autoFs !== 'boolean') settingsState.autoFs = false;
 if (typeof settingsState.cloak !== 'boolean') settingsState.cloak = false;
 if (typeof settingsState.cloakAuto !== 'boolean') settingsState.cloakAuto = false;
 if (STORE.get('secretBlack', false)) settingsState.secretBlack = true;
@@ -2036,8 +2061,11 @@ function startOnboarding() {
 
 function updateClock() {
   const n = new Date();
-  document.getElementById('clock').textContent =
-    String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  const t = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  const c = document.getElementById('clock');
+  if (c) c.textContent = t;
+  const d = document.getElementById('dockClock');
+  if (d) d.textContent = t;
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -2093,12 +2121,25 @@ const _ss = document.getElementById('startSearch'); if (_ss) _ss.oninput = (e) =
 function toggleStartMenu() { document.getElementById('start-menu').classList.toggle('open'); }
 function closeStartMenu() { document.getElementById('start-menu').classList.remove('open'); }
 document.getElementById('startBtn').onclick = (e) => { e.stopPropagation(); toggleStartMenu(); };
-document.getElementById('brandBtn').onclick = (e) => { e.stopPropagation(); toggleStartMenu(); };
+var _bb = document.getElementById('brandBtn'); if (_bb) _bb.onclick = (e) => { e.stopPropagation(); toggleStartMenu(); };
 
 function openApp(id) {
   if (openWindows[id]) {
-    openWindows[id].classList.remove('minimized');
-    focusWindow(id); updateDock(); return;
+    const w = openWindows[id];
+    const isMin = w.classList.contains('minimized') || w.classList.contains('minimizing');
+    /* dock click: minimize if already focused & open; else restore/focus */
+    if (!isMin && focusedId === id) {
+      minimizeWindow(id);
+      return;
+    }
+    if (isMin) {
+      w.classList.remove('minimized', 'minimizing');
+      w.classList.add('restoring');
+      setTimeout(function() { w.classList.remove('restoring'); }, 360);
+    }
+    focusWindow(id);
+    updateDock();
+    return;
   }
   const a = apps[id];
   const win = document.createElement('div');
@@ -2154,7 +2195,10 @@ function openApp(id) {
 function openGameWindow(title, path) {
   const id = 'game-' + String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'play';
   if (openWindows[id]) {
-    openWindows[id].classList.remove('minimized');
+    const w = openWindows[id];
+    w.classList.remove('minimized', 'minimizing');
+    w.classList.add('restoring');
+    setTimeout(function() { w.classList.remove('restoring'); }, 360);
     focusWindow(id);
     updateDock();
     return;
@@ -2261,19 +2305,35 @@ function closeWindow(id) {
 }
 function minimizeWindow(id) {
   const win = openWindows[id];
-  if (win) { win.classList.add('minimized'); if (focusedId === id) focusedId = null; updateDock(); }
+  if (!win || win.classList.contains('minimized') || win.classList.contains('minimizing')) return;
+  win.classList.add('minimizing');
+  if (focusedId === id) focusedId = null;
+  updateDock();
+  setTimeout(function() {
+    win.classList.remove('minimizing');
+    win.classList.add('minimized');
+    updateDock();
+  }, 320);
 }
 function toggleMaximize(id) {
   const win = openWindows[id];
   if (!win) return;
-  win.classList.remove('snap-left', 'snap-right');
-  win.classList.toggle('maximized');
-  if (win.classList.contains('maximized')) {
+  clearSnapClasses(win);
+  if (!win.classList.contains('maximized')) {
+    freezeWindowRect(win);
     win.dataset.prev = JSON.stringify({ left: win.style.left, top: win.style.top, width: win.style.width, height: win.style.height });
-  } else if (win.dataset.prev) {
-    const p = JSON.parse(win.dataset.prev);
-    win.style.left = p.left; win.style.top = p.top; win.style.width = p.width; win.style.height = p.height;
+    void win.offsetWidth;
+    win.classList.add('maximized');
+  } else {
+    win.classList.remove('maximized');
+    if (win.dataset.prev) {
+      const p = JSON.parse(win.dataset.prev);
+      win.style.left = p.left; win.style.top = p.top; win.style.width = p.width; win.style.height = p.height;
+    }
   }
+  setTimeout(function() {
+    window.dispatchEvent(new Event('resize'));
+  }, 340);
 }
 function focusWindow(id) {
   Object.values(openWindows).forEach(w => w.classList.remove('focused'));
@@ -2284,7 +2344,12 @@ function focusWindow(id) {
 function updateDock() {
   document.querySelectorAll('.dock-item[data-app]').forEach(item => {
     const app = item.dataset.app;
-    item.classList.toggle('active', !!(openWindows[app] && !openWindows[app].classList.contains('minimized')));
+    const win = openWindows[app];
+    const isOpen = !!win;
+    const isMin = !!(win && (win.classList.contains('minimized') || win.classList.contains('minimizing')));
+    item.classList.toggle('open', isOpen);
+    item.classList.toggle('minimized-app', isOpen && isMin);
+    item.classList.toggle('active', isOpen && !isMin && focusedId === app);
   });
 }
 document.querySelectorAll('.dock-item[data-app]').forEach(item => {
@@ -2315,7 +2380,7 @@ function makeDraggable(win) {
     win.style.transition = 'none';
     const move = ev => {
       win.style.left = (sl + ev.clientX - sx) + 'px';
-      win.style.top = Math.max(32, st + ev.clientY - sy) + 'px';
+      win.style.top = Math.max(0, st + ev.clientY - sy) + 'px';
     };
     const up = () => {
       document.removeEventListener('mousemove', move);
@@ -2344,7 +2409,7 @@ function makeResizable(win) {
         if (dir.includes('s')) nh = Math.max(220, sh + dy);
         if (dir.includes('n')) { nh = Math.max(220, sh - dy); nt = st + (sh - nh); }
         win.style.width = nw + 'px'; win.style.height = nh + 'px';
-        win.style.left = nl + 'px'; win.style.top = Math.max(32, nt) + 'px';
+        win.style.left = nl + 'px'; win.style.top = Math.max(0, nt) + 'px';
       };
       const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
       document.addEventListener('mousemove', move);
@@ -2514,22 +2579,74 @@ function renderAppContent(id) {
 
   if (id === 'calc') {
     body.style.padding = '0'; body.style.overflow = 'hidden';
-    const wallBg = (document.getElementById('wallpaper') && document.getElementById('wallpaper').style.backgroundImage) || '';
+
+    function getWallCss() {
+      var wall = document.getElementById('wallpaper');
+      var vid = document.getElementById('wallpaperVideo');
+      if (wall) {
+        var bg = wall.style.backgroundImage;
+        if (bg && bg !== 'none' && bg.indexOf('url(') >= 0) return bg;
+      }
+      /* fallback: theme asset */
+      try {
+        var stem = String((PETS[currentTheme] || PETS.rias).wallpaper || ('assets/' + (currentTheme || 'rias')));
+        stem = stem.replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
+        return 'url("' + assetUrl(stem + '.png') + '?v=' + Date.now() + '")';
+      } catch (e) { return ''; }
+    }
+    var wallCss = getWallCss();
+
     body.innerHTML =
-      '<div style="height:100%;display:flex;position:relative;background:#050506">' +
-      '<div style="position:absolute;inset:0;background-size:cover;background-position:center;' +
-      (wallBg ? 'background-image:' + wallBg + ';' : '') +
-      'filter:brightness(.45) saturate(.7) blur(6px);opacity:.55;pointer-events:none"></div>' +
-      '<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);pointer-events:none"></div>' +
-      '<div style="position:relative;z-index:1;width:min(300px,36%);flex-shrink:0;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;' +
-      'background:rgba(8,6,10,.55);backdrop-filter:blur(28px) saturate(1.2);-webkit-backdrop-filter:blur(28px)">' +
-      '<div id="exprList" style="flex:1;overflow:auto;padding:8px 0"></div></div>' +
-      '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-width:0">' +
-      '<div style="padding:8px 12px;display:flex;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.25)">' +
-      '<button id="graphReset" style="margin-left:auto;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#aaa;cursor:pointer;font-size:11px">Reset view</button></div>' +
+      '<div style="height:100%;display:flex;position:relative;overflow:hidden;background:#0a080c">' +
+      /* wallpaper layer — light blur */
+      '<div id="calcWall" style="position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;' +
+      (wallCss ? 'background-image:' + wallCss + ';' : '') +
+      'filter:blur(8px) brightness(0.55) saturate(0.85);transform:scale(1.08);pointer-events:none"></div>' +
+      '<div style="position:absolute;inset:0;background:rgba(10,8,12,.5);pointer-events:none"></div>' +
+      /* sidebar */
+      '<div style="position:relative;z-index:2;width:min(300px,38%);flex-shrink:0;display:flex;flex-direction:column;' +
+      'background:rgba(12,10,14,.55);backdrop-filter:blur(36px) saturate(1.1);-webkit-backdrop-filter:blur(36px);' +
+      'border-right:1px solid rgba(255,255,255,.07)">' +
+      '<div id="exprList" style="flex:1;overflow:auto;padding:6px 0"></div></div>' +
+      /* graph — same tint over wallpaper */
+      '<div style="position:relative;z-index:2;flex:1;display:flex;flex-direction:column;min-width:0;background:rgba(10,8,12,.4);backdrop-filter:blur(2px)">' +
+      '<div style="padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15)">' +
+      '<span style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.5px">Graph</span>' +
+      '<button id="graphReset" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#ccc;cursor:pointer;font-size:11px">Reset</button></div>' +
       '<canvas id="graphCv" style="flex:1;width:100%;cursor:crosshair;display:block"></canvas></div></div>';
 
-    const colors = ['#5ac8ff','#ff5a7a','#7CFFB2','#ffd15a','#c77dff','#ff8c5a'];
+    /* if png fail, try jpg wallpaper */
+    (function() {
+      var el = body.querySelector('#calcWall');
+      if (!el || wallCss) {
+        /* still try jpg if png 404 — probe */
+        var stem = String((PETS[currentTheme] || PETS.rias).wallpaper || 'assets/rias').replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
+        var tries = ['.png', '.jpg', '.jpeg', '.webp'];
+        var ti = 0;
+        function next() {
+          if (ti >= tries.length) return;
+          var url = assetUrl(stem + tries[ti++]) + '?v=' + Date.now();
+          var img = new Image();
+          img.onload = function() {
+            el.style.backgroundImage = 'url("' + url + '")';
+          };
+          img.onerror = next;
+          img.src = url;
+        }
+        if (!wallCss || wallCss.indexOf('url(') < 0) next();
+        else {
+          /* verify current url loads; if not, try alternatives */
+          var m = wallCss.match(/url\(["']?([^"')]+)/);
+          if (m) {
+            var test = new Image();
+            test.onerror = next;
+            test.src = m[1];
+          }
+        }
+      }
+    })();
+
+    const colors = ['#2d7ff9', '#e83a5a', '#16c784', '#f5a623', '#9b59ff', '#00c2d4'];
     let exprs = [{ id: 1, text: '', on: true }];
     let nextId = 2;
     let view = { xMin: -10, xMax: 10, yMin: -6, yMax: 6 };
@@ -2537,21 +2654,29 @@ function renderAppContent(id) {
     const ctx = cv.getContext('2d');
     const list = body.querySelector('#exprList');
 
-    function sanitize(s) {
+    function sanitizeExpr(s) {
       s = String(s || '').trim();
+      s = s.replace(/^y\s*=\s*/i, '');
+      /* implicit multiply: 4x, 2sin, )x, x( */
+      s = s.replace(/(\d)\s*([a-zA-Z(])/g, '$1*$2');
+      s = s.replace(/(\))\s*([a-zA-Z(\d])/g, '$1*$2');
+      s = s.replace(/([a-zA-Z])\s*(\()/g, function(m, a, b) {
+        if (/^(sin|cos|tan|asin|acos|atan|sqrt|abs|log|ln|exp|floor|ceil|round|min|max|pi|e)$/i.test(a)) return m;
+        return a + '*' + b;
+      });
       s = s.replace(/\^/g, '**');
-      s = s.replace(/(\d)\s*\(/g, '$1*(').replace(/\)\s*(\d)/g, ')*$1').replace(/\)\s*\(/g, ')*(');
-      s = s.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|abs|log|ln|exp|floor|ceil|round|min|max)\b/gi, function(m) {
-        var k = m.toLowerCase(); return k === 'ln' ? 'Math.log' : 'Math.' + k;
+      s = s.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|abs|log|ln|exp|floor|ceil|round|min|max)\b/gi, function(fn) {
+        var k = fn.toLowerCase();
+        return k === 'ln' ? 'Math.log' : 'Math.' + k;
       });
       s = s.replace(/\bpi\b/gi, 'Math.PI');
       s = s.replace(/(^|[^a-zA-Z.])e([^a-zA-Z]|$)/g, '$1Math.E$2');
       return s;
     }
+
     function hasX(text) {
       return /(^|[^a-zA-Z_])x([^a-zA-Z_]|$)/i.test(String(text || ''));
     }
-    /* vertical line: x = 3  or  3 = x */
     function parseVertical(text) {
       var t = String(text || '').replace(/\s+/g, '');
       var m = t.match(/^x=([-+]?[\d.]+(?:e[-+]?\d+)?)$/i) || t.match(/^([-+]?[\d.]+(?:e[-+]?\d+)?)=x$/i);
@@ -2559,35 +2684,38 @@ function renderAppContent(id) {
       var v = parseFloat(m[1]);
       return isFinite(v) ? v : null;
     }
-    /* horizontal: y = 3 */
     function parseHorizontal(text) {
       var t = String(text || '').replace(/\s+/g, '');
       var m = t.match(/^y=([-+]?[\d.]+(?:e[-+]?\d+)?)$/i) || t.match(/^([-+]?[\d.]+(?:e[-+]?\d+)?)=y$/i);
       if (!m) return null;
+      /* don't treat y=4x as horizontal */
+      if (/[a-z]/i.test(t.replace(/^y=/, '').replace(/=y$/, ''))) return null;
       var v = parseFloat(m[1]);
       return isFinite(v) ? v : null;
     }
     function evalConstant(text) {
       try {
-        if (!text || hasX(text) || parseVertical(text) !== null || parseHorizontal(text) !== null) return null;
-        var s = sanitize(text.replace(/^y\s*=\s*/i, ''));
-        if (!s) return null;
+        if (!text || hasX(text) || parseVertical(text) !== null) return null;
+        if (/^y\s*=/i.test(text) && hasX(text)) return null;
+        var s = sanitizeExpr(text);
+        if (!s || /x/i.test(s.replace(/Math\./g, ''))) return null;
         var v = new Function('return (' + s + ')')();
         return (typeof v === 'number' && isFinite(v)) ? v : null;
       } catch (e) { return null; }
     }
     function compile(text) {
       try {
-        var s = String(text || '').trim().replace(/^y\s*=\s*/i, '');
-        s = sanitize(s);
+        var s = sanitizeExpr(text);
         if (!s) return null;
-        var fn = new Function('x', 'try{return (' + s + ')}catch(e){return NaN}');
-        fn(0);
+        var fn = new Function('x', 'with(Math){try{return (' + s + ')}catch(e){return NaN}}');
+        /* smoke test */
+        var t0 = fn(0), t1 = fn(1);
+        if (typeof t0 !== 'number' && typeof t1 !== 'number') return null;
         return fn;
       } catch (e) { return null; }
     }
     function niceStep(range) {
-      var raw = range / 8, pow = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1))), n = raw / pow, step = 1;
+      var raw = range / 10, pow = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1))), n = raw / pow, step = 1;
       if (n > 5) step = 10; else if (n > 2) step = 5; else if (n > 1) step = 2;
       return step * pow;
     }
@@ -2598,32 +2726,69 @@ function renderAppContent(id) {
 
     function resize() {
       var parent = cv.parentElement; if (!parent) return;
-      var r = parent.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-      var h = Math.max(120, r.height - 40);
-      cv.width = Math.floor(r.width * dpr); cv.height = Math.floor(h * dpr);
-      cv.style.width = r.width + 'px'; cv.style.height = h + 'px';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw();
+      var r = parent.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var h = Math.max(100, r.height - 42);
+      cv.width = Math.floor(r.width * dpr);
+      cv.height = Math.floor(h * dpr);
+      cv.style.width = r.width + 'px';
+      cv.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
     }
 
     function draw() {
-      var w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+      var w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return;
       ctx.clearRect(0, 0, w, h);
-      var xStep = niceStep(view.xMax - view.xMin), yStep = niceStep(view.yMax - view.yMin);
-      ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
+
+      /* subtle graph bg */
+      ctx.fillStyle = 'rgba(0,0,0,.15)';
+      ctx.fillRect(0, 0, w, h);
+
+      var xStep = niceStep(view.xMax - view.xMin);
+      var yStep = niceStep(view.yMax - view.yMin);
+
+      /* minor grid */
+      ctx.strokeStyle = 'rgba(255,255,255,.04)';
+      ctx.lineWidth = 1;
       for (var x = Math.ceil(view.xMin / xStep) * xStep; x <= view.xMax; x += xStep) {
         ctx.beginPath(); ctx.moveTo(xToP(x), 0); ctx.lineTo(xToP(x), h); ctx.stroke();
       }
       for (var y = Math.ceil(view.yMin / yStep) * yStep; y <= view.yMax; y += yStep) {
         ctx.beginPath(); ctx.moveTo(0, yToP(y)); ctx.lineTo(w, yToP(y)); ctx.stroke();
       }
-      ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5;
-      if (view.xMin < 0 && view.xMax > 0) { ctx.beginPath(); ctx.moveTo(xToP(0), 0); ctx.lineTo(xToP(0), h); ctx.stroke(); }
-      if (view.yMin < 0 && view.yMax > 0) { ctx.beginPath(); ctx.moveTo(0, yToP(0)); ctx.lineTo(w, yToP(0)); ctx.stroke(); }
+
+      /* axes */
+      ctx.strokeStyle = 'rgba(255,255,255,.35)';
+      ctx.lineWidth = 1.5;
+      if (view.xMin < 0 && view.xMax > 0) {
+        ctx.beginPath(); ctx.moveTo(xToP(0), 0); ctx.lineTo(xToP(0), h); ctx.stroke();
+      }
+      if (view.yMin < 0 && view.yMax > 0) {
+        ctx.beginPath(); ctx.moveTo(0, yToP(0)); ctx.lineTo(w, yToP(0)); ctx.stroke();
+      }
+
+      /* labels */
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.font = '11px system-ui,sans-serif';
+      for (var xl = Math.ceil(view.xMin / xStep) * xStep; xl <= view.xMax; xl += xStep) {
+        if (Math.abs(xl) < 1e-9) continue;
+        var ax = xToP(xl), ay = yToP(0);
+        ctx.fillText(String(+xl.toFixed(4)), ax + 3, Math.min(h - 4, Math.max(12, ay - 4)));
+      }
+      for (var yl = Math.ceil(view.yMin / yStep) * yStep; yl <= view.yMax; yl += yStep) {
+        if (Math.abs(yl) < 1e-9) continue;
+        var bx = xToP(0), by = yToP(yl);
+        ctx.fillText(String(+yl.toFixed(4)), Math.min(w - 36, Math.max(4, bx + 4)), by - 3);
+      }
 
       exprs.forEach(function(ex, i) {
-        if (!ex.on || !ex.text) return;
+        if (!ex.on || !String(ex.text).trim()) return;
         var c = colors[i % colors.length];
-        ctx.strokeStyle = c; ctx.lineWidth = 2.2;
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
 
         var vx = parseVertical(ex.text);
         if (vx !== null) {
@@ -2637,16 +2802,22 @@ function renderAppContent(id) {
           ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
           return;
         }
-        if (!hasX(ex.text)) return;
-        var fn = compile(ex.text); if (!fn) return;
+
+        /* function of x — including y=4x */
+        if (!hasX(ex.text) && !/^y\s*=/i.test(ex.text)) return;
+        var fn = compile(ex.text);
+        if (!fn) return;
+
         ctx.beginPath();
-        var started = false, steps = Math.max(240, w * 1.5);
+        var started = false;
+        var steps = Math.max(400, Math.floor(w * 2));
         for (var s = 0; s <= steps; s++) {
-          var xv = view.xMin + (s / steps) * (view.xMax - view.xMin), yv;
-          try { yv = fn(xv); } catch (e) { yv = NaN; }
+          var xv = view.xMin + (s / steps) * (view.xMax - view.xMin);
+          var yv;
+          try { yv = fn(xv); } catch (err) { yv = NaN; }
           if (!isFinite(yv)) { started = false; continue; }
           var ppx = xToP(xv), ppy = yToP(yv);
-          if (ppy < -80 || ppy > h + 80) { started = false; continue; }
+          if (ppy < -200 || ppy > h + 200) { started = false; continue; }
           if (!started) { ctx.moveTo(ppx, ppy); started = true; }
           else ctx.lineTo(ppx, ppy);
         }
@@ -2665,33 +2836,33 @@ function renderAppContent(id) {
         var c = colors[i % colors.length];
         var val = evalConstant(ex.text);
         var row = document.createElement('div');
-        row.style.cssText = 'padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.05);position:relative';
+        row.style.cssText = 'padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05)';
         var top = document.createElement('div');
         top.style.cssText = 'display:flex;align-items:center;gap:10px';
         var dot = document.createElement('div');
-        dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:' + c + ';flex-shrink:0;cursor:pointer;opacity:' + (ex.on ? '1' : '.35');
-        dot.onclick = function() { ex.on = !ex.on; STORE.set('calcExprs', exprs); renderExprs(ex.id); draw(); };
+        dot.title = 'Toggle';
+        dot.style.cssText = 'width:12px;height:12px;border-radius:50%;background:' + c + ';flex-shrink:0;cursor:pointer;opacity:' + (ex.on ? '1' : '.3') + ';box-shadow:0 0 8px ' + c + '55';
+        dot.onclick = function() { ex.on = !ex.on; renderExprs(ex.id); draw(); };
         var inp = document.createElement('input');
         inp.value = ex.text;
         inp.spellcheck = false;
-        inp.placeholder = '';
-        inp.style.cssText = 'flex:1;min-width:0;height:28px;border:none;background:transparent;color:#f0f0f0;font-size:14px;font-family:ui-monospace,monospace;outline:none';
+        inp.placeholder = 'y = 4x';
+        inp.style.cssText = 'flex:1;min-width:0;height:28px;border:none;background:transparent;color:#f5f5f5;font-size:15px;font-family:ui-monospace,SFMono-Regular,monospace;outline:none';
         top.appendChild(dot); top.appendChild(inp); row.appendChild(top);
         if (val !== null) {
           var ans = document.createElement('div');
           ans.className = 'ans';
-          ans.style.cssText = 'text-align:right;padding:2px 0 0 20px;font-size:14px;font-family:ui-monospace,monospace;color:' + c + ';font-variant-numeric:tabular-nums;opacity:.9';
+          ans.style.cssText = 'text-align:right;padding:2px 2px 0 24px;font-size:15px;font-family:ui-monospace,monospace;color:' + c + ';opacity:.95';
           ans.textContent = '= ' + fmtAns(val);
           row.appendChild(ans);
         }
         inp.oninput = function() {
           ex.text = inp.value;
-          STORE.set('calcExprs', exprs);
           var existing = row.querySelector('.ans'); if (existing) existing.remove();
           var v2 = evalConstant(ex.text);
           if (v2 !== null) {
             var a2 = document.createElement('div'); a2.className = 'ans';
-            a2.style.cssText = 'text-align:right;padding:2px 0 0 20px;font-size:14px;font-family:ui-monospace,monospace;color:' + c + ';font-variant-numeric:tabular-nums;opacity:.9';
+            a2.style.cssText = 'text-align:right;padding:2px 2px 0 24px;font-size:15px;font-family:ui-monospace,monospace;color:' + c + ';opacity:.95';
             a2.textContent = '= ' + fmtAns(v2);
             row.appendChild(a2);
           }
@@ -2703,7 +2874,6 @@ function renderAppContent(id) {
             var ni = { id: nextId++, text: '', on: true };
             var idx = exprs.findIndex(function(x) { return x.id === ex.id; });
             exprs.splice(idx + 1, 0, ni);
-            STORE.set('calcExprs', exprs);
             renderExprs(ni.id); draw();
             return;
           }
@@ -2711,13 +2881,12 @@ function renderAppContent(id) {
             e.preventDefault();
             var idx2 = exprs.findIndex(function(x) { return x.id === ex.id; });
             exprs = exprs.filter(function(x) { return x.id !== ex.id; });
-            STORE.set('calcExprs', exprs);
             var focus = exprs[Math.max(0, idx2 - 1)] || exprs[0];
             renderExprs(focus.id); draw();
           }
         };
         list.appendChild(row);
-        if (focusId === ex.id) setTimeout(function() { inp.focus(); }, 10);
+        if (focusId === ex.id) setTimeout(function() { inp.focus(); }, 20);
       });
       if (!exprs.length) {
         exprs = [{ id: nextId++, text: '', on: true }];
@@ -2728,28 +2897,43 @@ function renderAppContent(id) {
     body.querySelector('#graphReset').onclick = function() {
       view = { xMin: -10, xMax: 10, yMin: -6, yMax: 6 }; draw();
     };
+
     var dragging = false, lx = 0, ly = 0;
     cv.addEventListener('mousedown', function(e) { dragging = true; lx = e.clientX; ly = e.clientY; });
     window.addEventListener('mouseup', function() { dragging = false; });
     cv.addEventListener('mousemove', function(e) {
       if (!dragging) return;
       var dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
-      var w = cv.clientWidth, h = cv.clientHeight, xSpan = view.xMax - view.xMin, ySpan = view.yMax - view.yMin;
-      view.xMin -= dx / w * xSpan; view.xMax -= dx / w * xSpan;
-      view.yMin += dy / h * ySpan; view.yMax += dy / h * ySpan; draw();
+      var ww = cv.clientWidth, hh = cv.clientHeight;
+      var xSpan = view.xMax - view.xMin, ySpan = view.yMax - view.yMin;
+      view.xMin -= dx / ww * xSpan; view.xMax -= dx / ww * xSpan;
+      view.yMin += dy / hh * ySpan; view.yMax += dy / hh * ySpan; draw();
     });
     cv.addEventListener('wheel', function(e) {
       e.preventDefault();
-      var factor = e.deltaY > 0 ? 1.12 : 1 / 1.12, mx = pToX(e.offsetX), my = pToY(e.offsetY);
+      var factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      var mx = pToX(e.offsetX), my = pToY(e.offsetY);
       view.xMin = mx + (view.xMin - mx) * factor; view.xMax = mx + (view.xMax - mx) * factor;
       view.yMin = my + (view.yMin - my) * factor; view.yMax = my + (view.yMax - my) * factor; draw();
     }, { passive: false });
 
     renderExprs(exprs[0].id);
-    setTimeout(resize, 30); setTimeout(resize, 150); setTimeout(resize, 400);
+    setTimeout(resize, 40);
+    setTimeout(resize, 200);
+    setTimeout(resize, 500);
+    if (window.ResizeObserver) {
+      try { new ResizeObserver(function() { resize(); }).observe(body); } catch (e) {}
+    }
+    window.addEventListener('resize', resize);
+    /* when parent window maximizes / snaps */
+    var winEl = body.closest('.window');
+    if (winEl && window.ResizeObserver) {
+      try { new ResizeObserver(function() { setTimeout(resize, 50); setTimeout(resize, 320); }).observe(winEl); } catch (e) {}
+    }
   }
 
   if (id === 'music') {
+
 
     body.style.padding = '0'; body.style.overflow = 'hidden';
     var SVG_PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
