@@ -77,9 +77,17 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
 #boot {
   position:fixed; inset:0; z-index:9999;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  transition: opacity .9s ease, visibility .9s;
+  transition: opacity 1.4s cubic-bezier(.2,.8,.2,1), visibility 1.4s, background .8s ease;
   background: #0a080c;
   overflow: hidden;
+}
+#boot.boot-dim {
+  background: rgba(10,8,12,.55);
+}
+#boot.boot-dim .boot-bg,
+#boot.boot-dim #bootVideo {
+  opacity: 0.35 !important;
+  transition: opacity .8s ease;
 }
 #boot.hidden { opacity:0; visibility:hidden; pointer-events:none }
 #boot.boot-reveal .boot-content { animation: bootContentIn 1.2s cubic-bezier(.2,.8,.2,1) both; }
@@ -1844,7 +1852,7 @@ function finishBoot() {
     if (vid) { try { vid.pause(); } catch (e) {} vid.removeAttribute('src'); vid.classList.remove('show'); }
     const boot = document.getElementById('boot');
     if (boot) {
-      boot.style.transition = 'opacity 1.1s cubic-bezier(.2,.8,.2,1), visibility 1.1s';
+      boot.style.transition = 'opacity 1.5s cubic-bezier(.2,.8,.2,1), visibility 1.5s';
       boot.classList.add('hidden');
     }
   } catch (e) {}
@@ -1927,63 +1935,103 @@ function runBoot() {
     tryIntro();
   } catch (e) {}
 
-  /* Load desktop under the boot overlay while text plays */
-  try {
-    const bootEl = document.getElementById('boot');
-    if (bootEl) bootEl.classList.add('boot-reveal');
-    applyTheme(currentTheme || 'rias');
-    renderDesktopIcons();
-    renderStartMenu();
-    updateClock();
-  } catch (e) {}
-
-  const lines = [
-    'Initializing desktop…',
-    'Loading wallpaper…',
-    'Starting services…',
-    'Almost ready…',
-    'Welcome.'
-  ];
+  const bootEl = document.getElementById('boot');
   const p = document.getElementById('bootProgress');
   const lineEl = document.getElementById('bootLine');
-  let i = 0;
-  const total = lines.length;
   let done = false;
+  let wallReady = false;
 
-  function tick() {
-    if (done) return;
-    i++;
+  function setLine(text, pct) {
     try {
-      if (p) p.style.width = Math.min(100, (i / total) * 100) + '%';
-      if (lineEl) {
-        lineEl.style.opacity = '0';
-        lineEl.style.transform = 'translateY(12px)';
-        lineEl.style.filter = 'blur(6px)';
-        setTimeout(function() {
-          lineEl.textContent = lines[Math.min(i - 1, total - 1)];
-          lineEl.style.opacity = '1';
-          lineEl.style.transform = 'translateY(0)';
-          lineEl.style.filter = 'none';
-        }, 180);
-      }
+      if (p && typeof pct === 'number') p.style.width = Math.min(100, pct) + '%';
+      if (!lineEl) return;
+      lineEl.style.opacity = '0';
+      lineEl.style.transform = 'translateY(12px)';
+      lineEl.style.filter = 'blur(6px)';
+      setTimeout(function() {
+        lineEl.textContent = text;
+        lineEl.style.opacity = '1';
+        lineEl.style.transform = 'translateY(0)';
+        lineEl.style.filter = 'none';
+      }, 160);
     } catch (e) {}
-    if (i >= total) {
-      done = true;
-      setTimeout(finishBoot, 900);
-    }
   }
+
+  function waitForWallpaper(timeoutMs) {
+    return new Promise(function(resolve) {
+      var wall = document.getElementById('wallpaper');
+      var vid = document.getElementById('wallpaperVideo');
+      var finished = false;
+      function ok() {
+        if (finished) return;
+        finished = true;
+        wallReady = true;
+        resolve(true);
+      }
+      var t = setTimeout(function() { ok(); }, timeoutMs || 5000);
+      if (vid) {
+        vid.addEventListener('loadeddata', function() {
+          if (vid.classList.contains('show')) { clearTimeout(t); ok(); }
+        });
+      }
+      if (wall) {
+        var obs = new MutationObserver(function() {
+          if (wall.classList.contains('has-image') || (wall.style.backgroundImage && wall.style.backgroundImage !== 'none')) {
+            clearTimeout(t);
+            ok();
+            try { obs.disconnect(); } catch (e) {}
+          }
+        });
+        obs.observe(wall, { attributes: true, attributeFilter: ['class', 'style'] });
+        if (wall.classList.contains('has-image') || (wall.style.backgroundImage && wall.style.backgroundImage !== 'none')) {
+          clearTimeout(t);
+          ok();
+          try { obs.disconnect(); } catch (e) {}
+        }
+      }
+    });
+  }
+
+  if (bootEl) bootEl.classList.add('boot-reveal');
+  setLine('Starting Vision OS…', 8);
+
+  setTimeout(function() {
+    setLine('Loading desktop…', 18);
+    try {
+      renderDesktopIcons();
+      renderStartMenu();
+      updateClock();
+    } catch (e) {}
+  }, 700);
+
+  setTimeout(function() {
+    setLine('Setting wallpaper…', 35);
+    try { applyTheme(currentTheme || 'rias'); } catch (e) {}
+    /* fade boot so real wallpaper shows underneath */
+    setTimeout(function() {
+      if (bootEl) bootEl.classList.add('boot-dim');
+    }, 400);
+
+    waitForWallpaper(6000).then(function() {
+      setLine(wallReady ? 'Wallpaper ready' : 'Using solid background', 60);
+      setTimeout(function() {
+        setLine('Starting services…', 75);
+      }, 900);
+      setTimeout(function() {
+        setLine('Almost ready…', 90);
+      }, 1800);
+      setTimeout(function() {
+        setLine('Welcome.', 100);
+      }, 2600);
+      setTimeout(function() {
+        if (!done) { done = true; finishBoot(); }
+      }, 3600);
+    });
+  }, 1400);
 
   setTimeout(function() {
     if (!done) { done = true; finishBoot(); }
-  }, 12000);
-
-  setTimeout(function() {
-    tick();
-    const t = setInterval(function() {
-      tick();
-      if (done) clearInterval(t);
-    }, 1100);
-  }, 500);
+  }, 14000);
 }
 
 function startOnboarding() {
@@ -2166,7 +2214,7 @@ function openApp(id) {
   let snapHide = null;
   maxBtn.onmouseenter = () => {
     clearTimeout(snapHide);
-    snapHide = setTimeout(() => snapPicker.classList.add('show'), 300);
+    snapHide = setTimeout(() => snapPicker.classList.add('show'), 750);
   };
   maxBtn.onmouseleave = () => {
     snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
@@ -2224,7 +2272,7 @@ function openGameWindow(title, path) {
   let snapHide = null;
   maxBtn.onmouseenter = () => {
     clearTimeout(snapHide);
-    snapHide = setTimeout(() => snapPicker.classList.add('show'), 300);
+    snapHide = setTimeout(() => snapPicker.classList.add('show'), 750);
   };
   maxBtn.onmouseleave = () => {
     snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
@@ -2580,70 +2628,53 @@ function renderAppContent(id) {
   if (id === 'calc') {
     body.style.padding = '0'; body.style.overflow = 'hidden';
 
-    function getWallCss() {
-      var wall = document.getElementById('wallpaper');
-      var vid = document.getElementById('wallpaperVideo');
-      if (wall) {
-        var bg = wall.style.backgroundImage;
-        if (bg && bg !== 'none' && bg.indexOf('url(') >= 0) return bg;
-      }
-      /* fallback: theme asset */
-      try {
-        var stem = String((PETS[currentTheme] || PETS.rias).wallpaper || ('assets/' + (currentTheme || 'rias')));
-        stem = stem.replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
-        return 'url("' + assetUrl(stem + '.png') + '?v=' + Date.now() + '")';
-      } catch (e) { return ''; }
-    }
-    var wallCss = getWallCss();
-
     body.innerHTML =
-      '<div style="height:100%;display:flex;position:relative;overflow:hidden;background:#0a080c">' +
-      /* wallpaper layer — light blur */
+      '<div style="height:100%;display:flex;position:relative;overflow:hidden;background:#1a1218">' +
       '<div id="calcWall" style="position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;' +
-      (wallCss ? 'background-image:' + wallCss + ';' : '') +
-      'filter:blur(8px) brightness(0.55) saturate(0.85);transform:scale(1.08);pointer-events:none"></div>' +
-      '<div style="position:absolute;inset:0;background:rgba(10,8,12,.5);pointer-events:none"></div>' +
-      /* sidebar */
+      'filter:blur(10px) brightness(0.7);transform:scale(1.1);pointer-events:none;z-index:0"></div>' +
+      '<div style="position:absolute;inset:0;background:rgba(10,8,12,.28);pointer-events:none;z-index:1"></div>' +
       '<div style="position:relative;z-index:2;width:min(300px,38%);flex-shrink:0;display:flex;flex-direction:column;' +
-      'background:rgba(12,10,14,.55);backdrop-filter:blur(36px) saturate(1.1);-webkit-backdrop-filter:blur(36px);' +
-      'border-right:1px solid rgba(255,255,255,.07)">' +
+      'background:rgba(12,10,14,.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);' +
+      'border-right:1px solid rgba(255,255,255,.08)">' +
       '<div id="exprList" style="flex:1;overflow:auto;padding:6px 0"></div></div>' +
-      /* graph — same tint over wallpaper */
-      '<div style="position:relative;z-index:2;flex:1;display:flex;flex-direction:column;min-width:0;background:rgba(10,8,12,.4);backdrop-filter:blur(2px)">' +
-      '<div style="padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15)">' +
+      '<div style="position:relative;z-index:2;flex:1;display:flex;flex-direction:column;min-width:0;background:transparent">' +
+      '<div style="padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.12)">' +
       '<span style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.5px">Graph</span>' +
       '<button id="graphReset" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#ccc;cursor:pointer;font-size:11px">Reset</button></div>' +
-      '<canvas id="graphCv" style="flex:1;width:100%;cursor:crosshair;display:block"></canvas></div></div>';
+      '<canvas id="graphCv" style="flex:1;width:100%;cursor:crosshair;display:block;background:transparent"></canvas></div></div>';
 
-    /* if png fail, try jpg wallpaper */
-    (function() {
+    /* Always load current theme wallpaper into calc */
+    (function loadCalcWall() {
       var el = body.querySelector('#calcWall');
-      if (!el || wallCss) {
-        /* still try jpg if png 404 — probe */
-        var stem = String((PETS[currentTheme] || PETS.rias).wallpaper || 'assets/rias').replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
-        var tries = ['.png', '.jpg', '.jpeg', '.webp'];
-        var ti = 0;
-        function next() {
-          if (ti >= tries.length) return;
-          var url = assetUrl(stem + tries[ti++]) + '?v=' + Date.now();
-          var img = new Image();
-          img.onload = function() {
-            el.style.backgroundImage = 'url("' + url + '")';
-          };
-          img.onerror = next;
-          img.src = url;
-        }
-        if (!wallCss || wallCss.indexOf('url(') < 0) next();
-        else {
-          /* verify current url loads; if not, try alternatives */
-          var m = wallCss.match(/url\(["']?([^"')]+)/);
-          if (m) {
-            var test = new Image();
-            test.onerror = next;
-            test.src = m[1];
+      if (!el) return;
+      var wall = document.getElementById('wallpaper');
+      var fromDesk = '';
+      try {
+        if (wall) {
+          fromDesk = wall.style.backgroundImage || '';
+          if (!fromDesk || fromDesk === 'none') {
+            fromDesk = (window.getComputedStyle(wall).backgroundImage || '');
           }
         }
+      } catch (e) {}
+      if (fromDesk && fromDesk !== 'none' && fromDesk.indexOf('url(') >= 0) {
+        el.style.backgroundImage = fromDesk;
       }
+      var stem = String((PETS[currentTheme] || PETS.rias).wallpaper || ('assets/' + (currentTheme || 'rias')));
+      stem = stem.replace(/\.(png|jpe?g|webp|gif|mp4|webm)$/i, '');
+      var exts = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+      var i = 0;
+      function tryNext() {
+        if (i >= exts.length) return;
+        var url = assetUrl(stem + exts[i++]) + '?v=' + Date.now();
+        var img = new Image();
+        img.onload = function() {
+          el.style.backgroundImage = 'url("' + url + '")';
+        };
+        img.onerror = tryNext;
+        img.src = url;
+      }
+      tryNext();
     })();
 
     const colors = ['#2d7ff9', '#e83a5a', '#16c784', '#f5a623', '#9b59ff', '#00c2d4'];
@@ -2740,10 +2771,7 @@ function renderAppContent(id) {
       var w = cv.clientWidth, h = cv.clientHeight;
       if (!w || !h) return;
       ctx.clearRect(0, 0, w, h);
-
-      /* subtle graph bg */
-      ctx.fillStyle = 'rgba(0,0,0,.15)';
-      ctx.fillRect(0, 0, w, h);
+      /* keep graph area transparent so wallpaper shows */
 
       var xStep = niceStep(view.xMax - view.xMin);
       var yStep = niceStep(view.yMax - view.yMin);
@@ -2933,42 +2961,53 @@ function renderAppContent(id) {
   }
 
   if (id === 'music') {
-
-
     body.style.padding = '0'; body.style.overflow = 'hidden';
     var SVG_PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     var SVG_PAUSE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>';
     var SVG_PREV = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>';
     var SVG_NEXT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2V6zM6 18l8.5-6L6 6v12z"/></svg>';
-    var SVG_NOTE = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
-    var playlists = STORE.get('playlists', [{ id: 'all', name: 'All Songs', tracks: null }]);
-    if (!playlists.find(function(p){ return p.id === 'all'; })) playlists.unshift({ id: 'all', name: 'All Songs', tracks: null });
-    var activePl = STORE.get('activePlaylist', 'all');
+    var SVG_NOTE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+    var SVG_HEART = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>';
+    var SVG_HEART_ON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>';
+    var liked = STORE.get('likedSongs', []);
+    if (!Array.isArray(liked)) liked = [];
+    var viewMode = STORE.get('musicView', 'all'); /* all | liked */
+    if (viewMode !== 'liked') viewMode = 'all';
+
     body.innerHTML =
-      '<div style="height:100%;display:flex;flex-direction:column;background:#121212;color:#fff;font-family:system-ui,sans-serif">' +
+      '<div style="height:100%;display:flex;flex-direction:column;background:#0d0d0d;color:#fff;font-family:system-ui,sans-serif">' +
       '<div style="display:flex;flex:1;min-height:0">' +
-      '<div style="width:220px;flex-shrink:0;background:#000;padding:16px 12px;display:flex;flex-direction:column;border-right:1px solid #282828">' +
-      '<div style="padding:4px 12px 14px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px">' + SVG_NOTE + ' Music</div>' +
-      '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b3b3b3;padding:0 12px 8px">PLAYLISTS</div>' +
-      '<div id="plList" style="flex:1;overflow:auto"></div>' +
-      '<button id="plNew" style="margin:8px;padding:10px;border-radius:8px;border:1px solid #333;background:transparent;color:#fff;cursor:pointer;font-size:12px;font-weight:600">New playlist</button>' +
+      /* sidebar */
+      '<div style="width:210px;flex-shrink:0;background:#000;padding:18px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #1a1a1a">' +
+      '<div style="padding:4px 12px 18px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px;color:#fff">' + SVG_NOTE + ' Music</div>' +
+      '<button data-view="all" class="mus-nav" style="text-align:left;padding:12px 14px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:#b3b3b3">All Songs</button>' +
+      '<button data-view="liked" class="mus-nav" style="text-align:left;padding:12px 14px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:transparent;color:#b3b3b3">Liked Songs</button>' +
       '</div>' +
-      '<div style="flex:1;display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,#2a2a2a 0%,#121212 160px)">' +
-      '<div style="padding:18px 24px 8px;display:flex;align-items:flex-end;gap:12px">' +
-      '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b3b3b3">PLAYLIST</div>' +
-      '<div id="plTitle" style="font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-top:4px">All Songs</div></div>' +
-      '<button id="plAddSong" style="padding:8px 12px;border-radius:16px;border:1px solid #404040;background:transparent;color:#fff;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">Add song</button></div>' +
-      '<div style="padding:0 24px 12px"><div style="display:flex;align-items:center;gap:10px;max-width:360px;background:rgba(255,255,255,.08);border-radius:20px;padding:8px 14px">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b3b3b3" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
-      '<input id="musicSearch" placeholder="Search" spellcheck="false" style="flex:1;border:none;background:transparent;color:#fff;font-size:13px;outline:none"/></div></div>' +
-      '<div id="musicList" style="flex:1;overflow:auto;padding:4px 16px 16px"></div></div></div>' +
-      '<div style="height:90px;flex-shrink:0;background:#181818;border-top:1px solid #282828;display:grid;grid-template-columns:1fr 1.4fr 1fr;align-items:center;padding:0 16px;gap:12px">' +
+      /* main */
+      '<div style="flex:1;display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,rgba(232,90,122,.22) 0%,#121212 180px)">' +
+      '<div style="padding:22px 28px 10px;display:flex;align-items:flex-end;gap:18px">' +
+      '<div id="musHero" style="width:120px;height:120px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#1a1a1a);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(0,0,0,.5);color:#fff;flex-shrink:0">' + SVG_NOTE + '</div>' +
+      '<div style="min-width:0;padding-bottom:4px">' +
+      '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#fff;text-transform:uppercase">Library</div>' +
+      '<div id="musTitle" style="font-size:32px;font-weight:800;letter-spacing:-0.5px;margin:6px 0 8px;line-height:1.1">All Songs</div>' +
+      '<div id="musMeta" style="font-size:13px;color:#b3b3b3">0 songs</div></div></div>' +
+      '<div style="padding:8px 28px 12px;display:flex;align-items:center;gap:12px">' +
+      '<button id="musPlayAll" style="width:48px;height:48px;border-radius:50%;border:none;background:var(--accent);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.35)">' + SVG_PLAY + '</button>' +
+      '<div style="flex:1;max-width:280px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:20px;padding:8px 14px">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b3b3b3" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
+      '<input id="musicSearch" placeholder="Search songs" spellcheck="false" style="flex:1;border:none;background:transparent;color:#fff;font-size:13px;outline:none"/></div></div>' +
+      '<div style="padding:0 16px;display:grid;grid-template-columns:40px 1fr 44px 56px;gap:8px;align-items:center;font-size:11px;color:#b3b3b3;border-bottom:1px solid #282828;padding-bottom:8px;margin:0 12px">' +
+      '<span>#</span><span>TITLE</span><span></span><span style="text-align:right">TIME</span></div>' +
+      '<div id="musicList" style="flex:1;overflow:auto;padding:4px 12px 16px"></div></div></div>' +
+      /* player bar */
+      '<div style="height:88px;flex-shrink:0;background:#181818;border-top:1px solid #282828;display:grid;grid-template-columns:1fr 1.5fr 1fr;align-items:center;padding:0 16px;gap:12px">' +
       '<div style="display:flex;align-items:center;gap:12px;min-width:0">' +
-      '<div id="musicArt" style="width:56px;height:56px;border-radius:4px;background:#333;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--accent)">' + SVG_NOTE + '</div>' +
-      '<div style="min-width:0"><div id="musicTitle" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Not playing</div>' +
-      '<div id="musicSub" style="font-size:11px;color:#b3b3b3;margin-top:2px">Select a track</div></div></div>' +
+      '<div id="musicArt" style="width:52px;height:52px;border-radius:6px;background:#282828;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--accent)">' + SVG_NOTE + '</div>' +
+      '<div style="min-width:0;flex:1"><div id="musicTitle" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Not playing</div>' +
+      '<div id="musicSub" style="font-size:11px;color:#b3b3b3;margin-top:2px">Select a song</div></div>' +
+      '<button id="musicLikeNow" title="Like" style="border:none;background:transparent;color:#b3b3b3;cursor:pointer;padding:6px;display:flex;align-items:center">' + SVG_HEART + '</button></div>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' +
-      '<div style="display:flex;align-items:center;gap:20px">' +
+      '<div style="display:flex;align-items:center;gap:18px">' +
       '<button id="musicPrev" type="button" style="width:32px;height:32px;border:none;background:transparent;color:#b3b3b3;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' + SVG_PREV + '</button>' +
       '<button id="musicPlay" type="button" style="width:36px;height:36px;border:none;border-radius:50%;background:#fff;color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' + SVG_PLAY + '</button>' +
       '<button id="musicNext" type="button" style="width:32px;height:32px;border:none;background:transparent;color:#b3b3b3;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">' + SVG_NEXT + '</button></div>' +
@@ -2977,110 +3016,137 @@ function renderAppContent(id) {
       '<div id="musicBar" style="flex:1;height:4px;background:#4d4d4d;border-radius:2px;cursor:pointer;overflow:hidden"><div id="musicFill" style="height:100%;width:0%;background:#fff;border-radius:2px"></div></div>' +
       '<span id="musicDur" style="font-size:11px;color:#b3b3b3;width:36px;font-variant-numeric:tabular-nums">0:00</span></div></div><div></div></div></div>';
 
-    const listEl = body.querySelector('#musicList');
-    const plList = body.querySelector('#plList');
-    const searchEl = body.querySelector('#musicSearch');
+    var listEl = body.querySelector('#musicList');
+    var searchEl = body.querySelector('#musicSearch');
     MUSIC._ui = {
-      title: body.querySelector('#musicTitle'), sub: body.querySelector('#musicSub'),
-      fill: body.querySelector('#musicFill'), cur: body.querySelector('#musicCur'),
-      dur: body.querySelector('#musicDur'), playBtn: body.querySelector('#musicPlay'),
-      art: body.querySelector('#musicArt'), list: listEl
+      title: body.querySelector('#musicTitle'),
+      sub: body.querySelector('#musicSub'),
+      fill: body.querySelector('#musicFill'),
+      cur: body.querySelector('#musicCur'),
+      dur: body.querySelector('#musicDur'),
+      playBtn: body.querySelector('#musicPlay'),
+      art: body.querySelector('#musicArt'),
+      list: listEl
     };
     MUSIC.ensureAudio();
 
-    function savePl() { STORE.set('playlists', playlists); STORE.set('activePlaylist', activePl); }
-
+    function isLiked(id) {
+      return liked.indexOf(id) >= 0 || liked.indexOf(String(id)) >= 0;
+    }
+    function toggleLike(id) {
+      id = String(id);
+      var ix = liked.indexOf(id);
+      if (ix >= 0) liked.splice(ix, 1);
+      else liked.push(id);
+      STORE.set('likedSongs', liked);
+      renderNav();
+      renderTracks(searchEl.value);
+      syncLikeNow();
+    }
+    function syncLikeNow() {
+      var btn = body.querySelector('#musicLikeNow');
+      if (!btn) return;
+      var t = MUSIC.index >= 0 ? MUSIC.tracks[MUSIC.index] : null;
+      if (!t) { btn.innerHTML = SVG_HEART; btn.style.color = '#b3b3b3'; return; }
+      var on = isLiked(t.id);
+      btn.innerHTML = on ? SVG_HEART_ON : SVG_HEART;
+      btn.style.color = on ? 'var(--accent)' : '#b3b3b3';
+    }
     function libraryTracks() { return MUSIC.tracks || []; }
-
-    function currentTrackList() {
-      var pl = playlists.find(function(p){ return p.id === activePl; }) || playlists[0];
-      if (!pl || pl.tracks === null) return libraryTracks();
-      var byId = {};
-      libraryTracks().forEach(function(t){ byId[t.id] = t; byId[t.title.toLowerCase()] = t; });
-      return (pl.tracks || []).map(function(ref) {
-        if (byId[ref]) return byId[ref];
-        if (byId[String(ref).toLowerCase()]) return byId[String(ref).toLowerCase()];
-        return { id: ref, title: ref, path: null, missing: true };
-      }).filter(Boolean);
+    function visibleTracks() {
+      var all = libraryTracks();
+      if (viewMode === 'liked') {
+        return all.filter(function(t) { return isLiked(t.id); });
+      }
+      return all;
     }
-
-    function renderPlaylists() {
-      plList.innerHTML = '';
-      playlists.forEach(function(pl) {
-        var row = document.createElement('div');
-        var on = pl.id === activePl;
-        row.style.cssText = 'padding:10px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:' + (on ? '600' : '500') + ';color:' + (on ? '#fff' : '#b3b3b3') + ';background:' + (on ? '#282828' : 'transparent');
-        row.textContent = pl.name;
-        row.onclick = function() {
-          activePl = pl.id; savePl();
-          body.querySelector('#plTitle').textContent = pl.name;
-          renderPlaylists(); renderTracks(searchEl.value);
-        };
-        plList.appendChild(row);
+    function renderNav() {
+      body.querySelectorAll('.mus-nav').forEach(function(btn) {
+        var on = btn.getAttribute('data-view') === viewMode;
+        btn.style.background = on ? '#282828' : 'transparent';
+        btn.style.color = on ? '#fff' : '#b3b3b3';
       });
+      body.querySelector('#musTitle').textContent = viewMode === 'liked' ? 'Liked Songs' : 'All Songs';
+      var n = visibleTracks().length;
+      body.querySelector('#musMeta').textContent = n + (n === 1 ? ' song' : ' songs');
+      var hero = body.querySelector('#musHero');
+      if (viewMode === 'liked') {
+        hero.style.background = 'linear-gradient(135deg,#5a3a7a,var(--accent))';
+      } else {
+        hero.style.background = 'linear-gradient(135deg,var(--accent),#1a1a1a)';
+      }
     }
-
     function renderTracks(filter) {
       listEl.innerHTML = '';
       var q = (filter || '').trim().toLowerCase();
-      var items = currentTrackList().map(function(t, i) { return { t: t, i: i }; })
-        .filter(function(x) { return !q || (x.t.title || '').toLowerCase().includes(q); });
+      var items = visibleTracks().filter(function(t) {
+        return !q || (t.title || '').toLowerCase().indexOf(q) >= 0;
+      });
       if (!items.length) {
-        listEl.innerHTML = '<div style="padding:36px 16px;color:#b3b3b3;font-size:14px">No songs yet</div>';
+        listEl.innerHTML = '<div style="padding:40px 16px;color:#b3b3b3;font-size:14px">' +
+          (viewMode === 'liked' ? 'No liked songs yet. Tap the heart on a track.' : 'No songs yet. Add mp3 files to music/') +
+          '</div>';
         return;
       }
-      items.forEach(function(pair, rowNum) {
-        var t = pair.t, i = pair.i;
+      var full = libraryTracks();
+      items.forEach(function(t, rowNum) {
         var row = document.createElement('div');
-        row.dataset.mi = i;
-        row.style.cssText = 'display:grid;grid-template-columns:40px 1fr auto;gap:8px;align-items:center;padding:10px 12px;border-radius:6px;cursor:pointer';
-        row.innerHTML = '<span style="color:#b3b3b3;font-size:13px">' + (rowNum + 1) + '</span>' +
-          '<span style="font-size:14px;font-weight:500;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + String(t.title || '').replace(/</g,'&lt;') + (t.missing ? ' <span style="color:#666">(missing)</span>' : '') + '</span>' +
-          '<button data-rm style="border:none;background:transparent;color:#666;cursor:pointer;font-size:12px;padding:4px 8px">Remove</button>';
-        row.onmouseenter = function() { row.style.background = 'rgba(255,255,255,.06)'; };
-        row.onmouseleave = function() { row.style.background = ''; };
+        var playing = MUSIC.index >= 0 && full[MUSIC.index] && full[MUSIC.index].id === t.id;
+        row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 44px 56px;gap:8px;align-items:center;padding:8px 12px;border-radius:6px;cursor:pointer';
+        if (playing) row.style.background = 'rgba(255,255,255,.08)';
+        var heartOn = isLiked(t.id);
+        row.innerHTML =
+          '<span style="color:' + (playing ? 'var(--accent)' : '#b3b3b3') + ';font-size:13px">' + (rowNum + 1) + '</span>' +
+          '<span style="font-size:14px;font-weight:500;color:' + (playing ? 'var(--accent)' : '#fff') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          String(t.title || '').replace(/</g, '&lt;') + '</span>' +
+          '<button data-like style="border:none;background:transparent;cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;color:' +
+          (heartOn ? 'var(--accent)' : '#666') + '">' + (heartOn ? SVG_HEART_ON : SVG_HEART) + '</button>' +
+          '<span style="font-size:12px;color:#b3b3b3;text-align:right;font-variant-numeric:tabular-nums">—</span>';
+        row.onmouseenter = function() { if (!playing) row.style.background = 'rgba(255,255,255,.06)'; };
+        row.onmouseleave = function() { row.style.background = playing ? 'rgba(255,255,255,.08)' : ''; };
         row.onclick = function(e) {
-          if (e.target.closest('[data-rm]')) return;
-          if (t.missing || !t.path) return;
-          var full = libraryTracks();
-          var idx = full.findIndex(function(x){ return x.id === t.id || x.path === t.path; });
-          if (idx >= 0) { MUSIC.tracks = full; MUSIC.playIndex(idx); }
+          if (e.target.closest('[data-like]')) return;
+          var idx = full.findIndex(function(x) { return x.id === t.id; });
+          if (idx >= 0) {
+            MUSIC.tracks = full;
+            MUSIC.playIndex(idx);
+            renderTracks(searchEl.value);
+            syncLikeNow();
+          }
         };
-        row.querySelector('[data-rm]').onclick = function(e) {
+        row.querySelector('[data-like]').onclick = function(e) {
           e.stopPropagation();
-          var pl = playlists.find(function(p){ return p.id === activePl; });
-          if (!pl || pl.tracks === null) return;
-          pl.tracks = pl.tracks.filter(function(ref) {
-            return ref !== t.id && String(ref).toLowerCase() !== String(t.title).toLowerCase();
-          });
-          savePl(); renderTracks(searchEl.value);
+          toggleLike(t.id);
         };
         listEl.appendChild(row);
       });
     }
 
-    body.querySelector('#plNew').onclick = function() {
-      var name = prompt('Playlist name');
-      if (!name || !name.trim()) return;
-      var id = 'pl_' + Date.now();
-      playlists.push({ id: id, name: name.trim(), tracks: [] });
-      activePl = id; savePl();
-      body.querySelector('#plTitle').textContent = name.trim();
-      renderPlaylists(); renderTracks('');
-    };
-    body.querySelector('#plAddSong').onclick = function() {
-      var pl = playlists.find(function(p){ return p.id === activePl; });
-      if (!pl) return;
-      if (pl.tracks === null) {
-        alert('Create a playlist first to add songs by name.');
-        return;
+    body.querySelectorAll('.mus-nav').forEach(function(btn) {
+      btn.onclick = function() {
+        viewMode = btn.getAttribute('data-view');
+        STORE.set('musicView', viewMode);
+        renderNav();
+        renderTracks(searchEl.value);
+      };
+    });
+    body.querySelector('#musPlayAll').onclick = function() {
+      var items = visibleTracks();
+      if (!items.length) return;
+      var full = libraryTracks();
+      if (viewMode === 'liked') {
+        MUSIC.tracks = items;
+        MUSIC.playIndex(0);
+      } else {
+        MUSIC.tracks = full;
+        MUSIC.playIndex(0);
       }
-      var name = prompt('Song name (must match a track title from music/)');
-      if (!name || !name.trim()) return;
-      var key = name.trim();
-      var found = libraryTracks().find(function(t){ return t.title.toLowerCase() === key.toLowerCase() || t.id.toLowerCase() === key.toLowerCase(); });
-      pl.tracks.push(found ? found.id : key);
-      savePl(); renderTracks(searchEl.value);
+      renderTracks(searchEl.value);
+      syncLikeNow();
+    };
+    body.querySelector('#musicLikeNow').onclick = function() {
+      var t = MUSIC.index >= 0 ? MUSIC.tracks[MUSIC.index] : null;
+      if (t) toggleLike(t.id);
     };
     searchEl.oninput = function() { renderTracks(searchEl.value); };
     body.querySelector('#musicPlay').onclick = function() { MUSIC.toggle(); };
@@ -3096,7 +3162,10 @@ function renderAppContent(id) {
       function add(file, path, title) {
         const key = String(file).toLowerCase();
         if (seen.has(key)) {
-          if (title) { const ix = tracks.findIndex(function(t){ return t.id.toLowerCase()===key; }); if (ix>=0) tracks[ix].title = title; }
+          if (title) {
+            const ix = tracks.findIndex(function(t) { return t.id.toLowerCase() === key; });
+            if (ix >= 0) tracks[ix].title = title;
+          }
           return;
         }
         if (!/\.(mp3|m4a|wav|ogg|flac)$/i.test(file)) return;
@@ -3115,23 +3184,20 @@ function renderAppContent(id) {
         if (r.ok) {
           const text = await r.text(), re = /href\s*=\s*["']([^"']+)["']/gi; let m;
           while ((m = re.exec(text))) {
-            let h = m[1].replace(/\\/g,'/').split('?')[0].split('#')[0].replace(/^\.\//,'');
-            const parts = h.replace(/^music\//,'').split('/');
+            let h = m[1].replace(/\\/g, '/').split('?')[0].split('#')[0].replace(/^\.\//, '');
+            const parts = h.replace(/^music\//, '').split('/');
             if (parts.length === 1) add(parts[0], 'music/' + parts[0]);
           }
         }
       } catch (e) {}
-      tracks.sort(function(a,b){ return a.title.localeCompare(b.title); });
+      tracks.sort(function(a, b) { return a.title.localeCompare(b.title); });
       MUSIC.tracks = tracks;
-      var pl = playlists.find(function(p){ return p.id === activePl; });
-      body.querySelector('#plTitle').textContent = (pl && pl.name) || 'All Songs';
-      renderPlaylists();
+      renderNav();
       renderTracks('');
       MUSIC.syncUI();
+      syncLikeNow();
     })();
   }
-
-
 
   if (id === 'calendar') {
     const now = new Date();
