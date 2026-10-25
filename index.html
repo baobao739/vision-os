@@ -305,9 +305,11 @@ html, body { height:100%; overflow:hidden; font-family:var(--font); background:v
   display: block;
   opacity: 1;
 }
-#wallpaper::after { display: none !important; content: none; }
-#desktop > .wall-shade { display: none !important; }
+#wallpaper::after { display: none !important; content: none !important; }
+#desktop > .wall-shade { display: none !important; opacity: 0 !important; }
 #desktop.has-wall-video > .wall-shade { display: none !important; }
+/* full wallpaper, no dim overlay */
+#wallpaper.has-image { opacity: 1 !important; }
 #desktop.has-wall-video #wallpaper { opacity: 0 !important; }
 
 /* pet removed */
@@ -1455,7 +1457,9 @@ const apps = {
 
 let openWindows = {}, zCounter = 100, focusedId = null;
 let notesContent = STORE.get('notes', 'Vision OS\n\nYour space with Rias & Marin.\n\nNotes auto-save.');
-let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', proxyEnabled:false, theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false });
+let settingsState = STORE.get('settings', { notif:true, proxyPrefix:'', proxyPath:'/service/', proxyEnabled:false, invInstance:'https://yewtu.be', theme:'rias', cloak:false, cloakAuto:false, secretBlack:false, autoFs:false });
+if (!settingsState.invInstance) settingsState.invInstance = 'https://yewtu.be';
+if (!settingsState.proxyPath) settingsState.proxyPath = '/service/';
 if (typeof settingsState.proxyEnabled !== 'boolean') settingsState.proxyEnabled = false;
 if (typeof settingsState.autoFs !== 'boolean') settingsState.autoFs = false;
 if (typeof settingsState.cloak !== 'boolean') settingsState.cloak = false;
@@ -2121,17 +2125,50 @@ function runBoot() {
       card.dataset.theme = th.id;
       card.style.cssText = 'width:110px;padding:10px;border-radius:12px;border:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);cursor:pointer;text-align:center;transition:border-color .15s,transform .15s,box-shadow .15s';
       var prev = document.createElement('div');
-      prev.style.cssText = 'height:56px;border-radius:8px;margin-bottom:8px;background:#1a1218;background-size:cover;background-position:center;pointer-events:none';
-      var stem = 'assets/' + th.id;
-      var img = new Image();
-      img.onload = function() { prev.style.backgroundImage = 'url("' + assetUrl(stem + '.png') + '?v=' + Date.now() + '")'; };
-      img.onerror = function() {
-        var j = new Image();
-        j.onload = function() { prev.style.backgroundImage = 'url("' + assetUrl(stem + '.jpg') + '?v=' + Date.now() + '")'; };
-        j.src = assetUrl(stem + '.jpg');
+      var gradients = {
+        rias: 'linear-gradient(145deg,#3a0a14 0%,#c41e3a 45%,#1a080c 100%)',
+        marin: 'linear-gradient(145deg,#2a1520 0%,#ff6b9d 45%,#1a1018 100%)',
+        makima: 'linear-gradient(145deg,#1a0a0a 0%,#8b1a1a 40%,#2a1010 100%)'
       };
-      img.src = assetUrl(stem + '.png');
+      prev.style.cssText = 'height:56px;border-radius:8px;margin-bottom:8px;background:' + (gradients[th.id] || '#1a1218') + ';background-size:cover;background-position:center;pointer-events:none';
       card.appendChild(prev);
+      /* sample wallpaper at on-screen pixel size (DPR-aware: sharper on 4K/retina) */
+      (function(stem, el) {
+        var exts = ['.png', '.jpg', '.jpeg', '.webp'];
+        var i = 0;
+        function next() {
+          if (i >= exts.length) return;
+          var url = assetUrl(stem + exts[i++]);
+          var img = new Image();
+          img.onload = function() {
+            try {
+              var dpr = Math.min(window.devicePixelRatio || 1, 3);
+              var cssW = el.clientWidth || 110;
+              var cssH = el.clientHeight || 56;
+              var cw = Math.max(1, Math.round(cssW * dpr));
+              var ch = Math.max(1, Math.round(cssH * dpr));
+              var c = document.createElement('canvas');
+              c.width = cw; c.height = ch;
+              var ctx = c.getContext('2d');
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              var ir = img.width / img.height, cr = cw / ch;
+              var sx, sy, sw, sh;
+              if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
+              else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
+              ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+              el.style.backgroundImage = 'url("' + c.toDataURL('image/jpeg', 0.85) + '")';
+              el.style.backgroundSize = 'cover';
+            } catch (err) {
+              el.style.backgroundImage = 'url("' + url + '")';
+            }
+          };
+          img.onerror = next;
+          img.src = url;
+        }
+        /* wait a frame so clientWidth is real */
+        requestAnimationFrame(function() { requestAnimationFrame(next); });
+      })('assets/' + th.id, prev);
       var nm = document.createElement('div');
       nm.style.cssText = 'font-size:13px;font-weight:600;color:#f5eef2;pointer-events:none';
       nm.textContent = th.name;
@@ -2152,7 +2189,7 @@ function runBoot() {
         card.style.borderColor = '#ff5a7a';
         card.style.transform = 'scale(1.05)';
         card.style.boxShadow = '0 0 0 1px #ff5a7a, 0 8px 24px rgba(255,90,122,.35)';
-        try { applyTheme(th.id); } catch (err) {}
+        /* wallpaper loads on Finish only — keeps picker instant */
         finBtn.disabled = false;
         finBtn.style.opacity = '1';
         finBtn.style.cursor = 'pointer';
@@ -2402,17 +2439,34 @@ function openApp(id) {
   win.querySelector('.btn-min').onclick = (e) => { e.stopPropagation(); minimizeWindow(id); };
   const maxBtn = win.querySelector('.btn-max');
   const snapPicker = win.querySelector('.snap-picker');
-  let snapHide = null;
-  maxBtn.onmouseenter = () => {
-    clearTimeout(snapHide);
-    snapHide = setTimeout(() => snapPicker.classList.add('show'), 750);
-  };
-  maxBtn.onmouseleave = () => {
-    snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
-  };
-  snapPicker.onmouseenter = () => clearTimeout(snapHide);
-  snapPicker.onmouseleave = () => snapPicker.classList.remove('show');
-  maxBtn.onclick = (e) => { e.stopPropagation(); snapPicker.classList.remove('show'); toggleMaximize(id); };
+  let snapShowT = null, snapHideT = null;
+  function hideSnapNow() {
+    clearTimeout(snapShowT); clearTimeout(snapHideT);
+    snapPicker.classList.remove('show');
+  }
+  function scheduleShowSnap() {
+    clearTimeout(snapHideT);
+    clearTimeout(snapShowT);
+    snapShowT = setTimeout(function() { snapPicker.classList.add('show'); }, 550);
+  }
+  function scheduleHideSnap() {
+    clearTimeout(snapShowT);
+    clearTimeout(snapHideT);
+    snapHideT = setTimeout(function() {
+      if (!snapPicker.matches(':hover') && !maxBtn.matches(':hover')) snapPicker.classList.remove('show');
+    }, 180);
+  }
+  maxBtn.onmouseenter = scheduleShowSnap;
+  maxBtn.onmouseleave = scheduleHideSnap;
+  snapPicker.onmouseenter = function() { clearTimeout(snapHideT); clearTimeout(snapShowT); };
+  snapPicker.onmouseleave = scheduleHideSnap;
+  maxBtn.onclick = (e) => { e.stopPropagation(); hideSnapNow(); toggleMaximize(id); };
+  document.addEventListener('pointerdown', function snapDocClose(ev) {
+    if (!win.isConnected) { document.removeEventListener('pointerdown', snapDocClose); return; }
+    if (!snapPicker.classList.contains('show')) return;
+    if (snapPicker.contains(ev.target) || maxBtn.contains(ev.target)) return;
+    hideSnapNow();
+  }, true);
   snapPicker.querySelectorAll('[data-snap]').forEach(cell => {
     cell.onclick = (e) => {
       e.stopPropagation();
@@ -2460,17 +2514,34 @@ function openGameWindow(title, path) {
   win.querySelector('.btn-min').onclick = (e) => { e.stopPropagation(); minimizeWindow(id); };
   const maxBtn = win.querySelector('.btn-max');
   const snapPicker = win.querySelector('.snap-picker');
-  let snapHide = null;
-  maxBtn.onmouseenter = () => {
-    clearTimeout(snapHide);
-    snapHide = setTimeout(() => snapPicker.classList.add('show'), 750);
-  };
-  maxBtn.onmouseleave = () => {
-    snapHide = setTimeout(() => { if (!snapPicker.matches(':hover')) snapPicker.classList.remove('show'); }, 220);
-  };
-  snapPicker.onmouseenter = () => clearTimeout(snapHide);
-  snapPicker.onmouseleave = () => snapPicker.classList.remove('show');
-  maxBtn.onclick = (e) => { e.stopPropagation(); snapPicker.classList.remove('show'); toggleMaximize(id); };
+  let snapShowT = null, snapHideT = null;
+  function hideSnapNow() {
+    clearTimeout(snapShowT); clearTimeout(snapHideT);
+    snapPicker.classList.remove('show');
+  }
+  function scheduleShowSnap() {
+    clearTimeout(snapHideT);
+    clearTimeout(snapShowT);
+    snapShowT = setTimeout(function() { snapPicker.classList.add('show'); }, 550);
+  }
+  function scheduleHideSnap() {
+    clearTimeout(snapShowT);
+    clearTimeout(snapHideT);
+    snapHideT = setTimeout(function() {
+      if (!snapPicker.matches(':hover') && !maxBtn.matches(':hover')) snapPicker.classList.remove('show');
+    }, 180);
+  }
+  maxBtn.onmouseenter = scheduleShowSnap;
+  maxBtn.onmouseleave = scheduleHideSnap;
+  snapPicker.onmouseenter = function() { clearTimeout(snapHideT); clearTimeout(snapShowT); };
+  snapPicker.onmouseleave = scheduleHideSnap;
+  maxBtn.onclick = (e) => { e.stopPropagation(); hideSnapNow(); toggleMaximize(id); };
+  document.addEventListener('pointerdown', function snapDocClose(ev) {
+    if (!win.isConnected) { document.removeEventListener('pointerdown', snapDocClose); return; }
+    if (!snapPicker.classList.contains('show')) return;
+    if (snapPicker.contains(ev.target) || maxBtn.contains(ev.target)) return;
+    hideSnapNow();
+  }, true);
   snapPicker.querySelectorAll('[data-snap]').forEach(cell => {
     cell.onclick = (e) => {
       e.stopPropagation();
@@ -2709,6 +2780,28 @@ function createBrowserUI(body) {
   function useProxy() {
     return !!(settingsState.proxyEnabled && (settingsState.proxyPrefix || '').trim());
   }
+  /* Ultraviolet default XOR codec — same as UV 3.x templates */
+  function uvXorEncode(str) {
+    if (!str) return str;
+    var out = '';
+    for (var i = 0; i < str.length; i++) {
+      out += (i % 2)
+        ? String.fromCharCode(str.charCodeAt(i) ^ 2)
+        : str.charAt(i);
+    }
+    return encodeURIComponent(out);
+  }
+  function buildProxySrc(targetUrl) {
+    var base = (settingsState.proxyPrefix || '').trim().replace(/\/$/, '');
+    var path = (settingsState.proxyPath || '/service/').trim();
+    if (path.charAt(0) !== '/') path = '/' + path;
+    if (path.charAt(path.length - 1) !== '/') path += '/';
+    /* If user pasted full service prefix already (…/service), don't double it */
+    if (/\/service\/?$/i.test(base) || /\/uv\/service\/?$/i.test(base)) {
+      return base.replace(/\/$/, '') + '/' + uvXorEncode(targetUrl);
+    }
+    return base + path + uvXorEncode(targetUrl);
+  }
   function showHome(iframe) {
     const prox = useProxy();
     iframe.removeAttribute('src');
@@ -2717,19 +2810,21 @@ function createBrowserUI(body) {
       '<div style="font-size:22px;font-weight:300;color:#f5eef2">Search the web</div>' +
       '<div style="font-size:12px;max-width:380px;line-height:1.7;color:#8a7080">' +
       (prox
-        ? 'Proxy is on. Type a URL or search and press Enter.'
-        : 'Type a search or URL and press Enter. Optional proxy is in Settings.') +
+        ? 'UV proxy on. Type a search or URL — loads through your hosted Ultraviolet.'
+        : 'Type a search or URL and press Enter. Turn on UV proxy in Settings when ready.') +
       '</div></body></html>';
-    status.textContent = prox ? 'Proxy mode' : 'Direct mode · Enter to search';
-    nav.querySelector('.ff-lock').textContent = prox ? 'PROXY' : 'WEB';
+    status.textContent = prox ? 'UV proxy mode' : 'Direct mode · Enter to search';
+    nav.querySelector('.ff-lock').textContent = prox ? 'UV' : 'WEB';
   }
   function loadInto(iframe, url) {
     try { iframe.removeAttribute('srcdoc'); } catch (e) {}
     if (useProxy()) {
-      var prefix = (settingsState.proxyPrefix || '').trim();
-      var p = prefix.endsWith('/') ? prefix : prefix + '/';
-      try { iframe.src = p + encodeURIComponent(url); } catch (e) {}
-      status.textContent = 'Proxy · ' + url;
+      try {
+        iframe.src = buildProxySrc(url);
+        status.textContent = 'UV · ' + url;
+      } catch (e) {
+        status.textContent = 'Proxy error';
+      }
       return;
     }
     var src = url;
@@ -2751,9 +2846,14 @@ function createBrowserUI(body) {
       if (/^[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(url) && url.indexOf(' ') < 0) {
         url = 'https://' + url;
       } else {
-        url = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(input);
+        /* search — igu only for direct mode; UV prefers clean google URL */
+        if (useProxy()) {
+          url = 'https://www.google.com/search?q=' + encodeURIComponent(input);
+        } else {
+          url = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(input);
+        }
       }
-    } else if (/google\.com\/search/i.test(url) && url.indexOf('igu=') < 0) {
+    } else if (!useProxy() && /google\.com\/search/i.test(url) && url.indexOf('igu=') < 0) {
       url = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'igu=1';
     }
     const t = state.tabs[state.active];
@@ -3548,9 +3648,12 @@ function renderAppContent(id) {
       '</div>' +
       '<div data-pane-body="proxy" style="display:none">' +
       '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Proxy</div>' +
-      '<div class="setting-row"><label>Use proxy in Browser</label><div class="toggle ' + (settingsState.proxyEnabled?'on':'') + '" id="tog-proxy"></div></div>' +
+      '<div class="setting-row"><label>UV proxy in Browser</label><div class="toggle ' + (settingsState.proxyEnabled?'on':'') + '" id="tog-proxy"></div></div>' +
       '<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px"><label>Service prefix</label>' +
-      '<input type="text" id="proxy-prefix" placeholder="https://your-instance.com/service/" value="' + (settingsState.proxyPrefix||'').replace(/"/g,'&quot;') + '" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:12px"/></div>' +
+      '<div style="font-size:11px;color:var(--text-dim);margin:0 0 6px">Your hosted UV site origin (no /service path needed)</div>' +
+      '<input type="text" id="proxy-prefix" placeholder="https://your-uv-domain.com" value="' + (settingsState.proxyPrefix||'').replace(/"/g,'&quot;') + '" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:12px;margin-bottom:8px"/>' +
+      '<div style="font-size:11px;color:var(--text-dim);margin:0 0 6px">Service path (default /service/ for Ultraviolet-App)</div>' +
+      '<input type="text" id="proxy-path" placeholder="/service/" value="' + (settingsState.proxyPath||'/service/').replace(/"/g,'&quot;') + '" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:0 12px;font-size:12px"/></div>' +
       '<p class="hint">Optional. Leave off to search/browse directly (Google search works in the iframe). Turn on and paste Ultraviolet / Scramjet prefix only if you need blocked sites.</p>' +
       '</div>' +
       '<div data-pane-body="data" style="display:none">' +
@@ -3656,7 +3759,17 @@ function renderAppContent(id) {
     pref.onchange = pref.onblur = function() {
       settingsState.proxyPrefix = this.value.trim();
       STORE.set('settings', settingsState);
-      toast('PROXY', settingsState.proxyPrefix ? 'Prefix saved' : 'Cleared');
+      toast('PROXY', settingsState.proxyPrefix ? 'UV host saved' : 'Cleared');
+    };
+    var pathEl = body.querySelector('#proxy-path');
+    if (pathEl) pathEl.onchange = pathEl.onblur = function() {
+      var p = this.value.trim() || '/service/';
+      if (p.charAt(0) !== '/') p = '/' + p;
+      if (p.charAt(p.length-1) !== '/') p += '/';
+      settingsState.proxyPath = p;
+      this.value = p;
+      STORE.set('settings', settingsState);
+      toast('PROXY', 'Path ' + p);
     };
     body.querySelector('#btn-clear').onclick = function() {
       if (confirm('Clear all Vision OS data?')) {
@@ -3946,27 +4059,125 @@ function renderAppContent(id) {
   if (id === 'media') {
     body.style.padding = '0'; body.style.overflow = 'hidden';
     body.innerHTML =
-      '<div style="height:100%;display:flex;flex-direction:column;background:#0a0a0c">' +
-      '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface)">' +
+      '<div id="mediaRoot" style="height:100%;display:flex;flex-direction:column;background:#0a0a0c;position:relative">' +
+      '<div id="mediaTop" style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface);flex-shrink:0">' +
       '<div style="font-size:14px;font-weight:600;flex:1">Media Player</div>' +
       '<label style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:11px;color:var(--accent)">Open file' +
       '<input type="file" id="mediaFile" accept="video/*,audio/*,.mp4,.webm,.mp3,.wav,.ogg" style="display:none"/></label></div>' +
-      '<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;min-height:0;position:relative">' +
-      '<video id="mediaVid" controls playsinline style="max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;background:#000"></video>' +
-      '<div id="mediaEmpty" style="position:absolute;color:var(--faint);font-size:13px;text-align:center;pointer-events:none">Open a video or audio file</div></div></div>';
+      '<div id="mediaStage" style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;min-height:0;position:relative">' +
+      '<video id="mediaVid" playsinline style="max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;background:#000"></video>' +
+      '<div id="mediaEmpty" style="position:absolute;color:var(--faint);font-size:13px;text-align:center;pointer-events:none">Open a video or audio file<br><span style="font-size:11px;opacity:.7">Space = play &nbsp;|&nbsp; Arrows = seek &nbsp;|&nbsp; F = fullscreen</span></div>' +
+      '<div id="mediaBar" style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 16px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:none;flex-direction:column;gap:8px">' +
+      '<div id="mediaSeekWrap" style="height:6px;border-radius:3px;background:rgba(255,255,255,.2);cursor:pointer;position:relative">' +
+      '<div id="mediaSeek" style="height:100%;width:0%;border-radius:3px;background:var(--accent,#ff5a7a);pointer-events:none"></div></div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+      '<button id="mediaPlay" title="Play/Pause" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;width:34px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0">' +
+      '<svg id="mediaPlayIcon" width="12" height="12" viewBox="0 0 12 12" fill="#fff"><path d="M2 1.5v9l8-4.5z"/></svg></button>' +
+      '<span id="mediaTime" style="font-size:11px;color:#ccc;font-variant-numeric:tabular-nums;min-width:90px">0:00 / 0:00</span>' +
+      '<div style="flex:1"></div>' +
+      '<button id="mediaFs" title="Fullscreen" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;height:28px;padding:0 10px;border-radius:8px;font-size:11px;font-weight:600;letter-spacing:.3px">Full</button>' +
+      '</div></div></div></div>';
     const vid = body.querySelector('#mediaVid');
     const empty = body.querySelector('#mediaEmpty');
+    const bar = body.querySelector('#mediaBar');
+    const seek = body.querySelector('#mediaSeek');
+    const seekWrap = body.querySelector('#mediaSeekWrap');
+    const timeEl = body.querySelector('#mediaTime');
+    const playBtn = body.querySelector('#mediaPlay');
+    const stage = body.querySelector('#mediaStage');
+    const root = body.querySelector('#mediaRoot');
+
+    function fmt(s) {
+      s = Math.max(0, Math.floor(s || 0));
+      var m = Math.floor(s / 60), sec = s % 60;
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    function updateBar() {
+      var d = vid.duration || 0, t = vid.currentTime || 0;
+      var pct = d ? (t / d) * 100 : 0;
+      seek.style.width = pct + '%';
+      timeEl.textContent = fmt(t) + ' / ' + fmt(d);
+      var ic = body.querySelector('#mediaPlayIcon');
+      if (ic) {
+        if (vid.paused) ic.innerHTML = '<path d="M2 1.5v9l8-4.5z"/>';
+        else ic.innerHTML = '<rect x="2" y="1.5" width="2.8" height="9" rx="0.4"/><rect x="7.2" y="1.5" width="2.8" height="9" rx="0.4"/>';
+      }
+    }
+    vid.addEventListener('timeupdate', updateBar);
+    vid.addEventListener('loadedmetadata', function() {
+      empty.style.display = 'none';
+      bar.style.display = 'flex';
+      updateBar();
+    });
+    vid.addEventListener('play', updateBar);
+    vid.addEventListener('pause', updateBar);
+    playBtn.onclick = function(e) {
+      e.stopPropagation();
+      if (vid.paused) vid.play().catch(function(){}); else vid.pause();
+    };
+    seekWrap.onclick = function(e) {
+      e.stopPropagation();
+      var r = seekWrap.getBoundingClientRect();
+      var ratio = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      if (vid.duration) vid.currentTime = ratio * vid.duration;
+      updateBar();
+    };
+    body.querySelector('#mediaFs').onclick = function(e) {
+      e.stopPropagation();
+      var el = stage;
+      if (!document.fullscreenElement) {
+        (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      }
+    };
+    document.addEventListener('fullscreenchange', function() {
+      /* keep custom bar visible and sized in fullscreen */
+      bar.style.display = vid.src ? 'flex' : 'none';
+      updateBar();
+    });
+    stage.addEventListener('click', function(e) {
+      if (e.target.closest('#mediaBar')) return;
+      if (!vid.src) return;
+      if (vid.paused) vid.play().catch(function(){}); else vid.pause();
+    });
+    body.addEventListener('keydown', function(e) {
+      if (!vid.src) return;
+      if (e.key === ' ' || e.key === 'k') {
+        e.preventDefault();
+        if (vid.paused) vid.play().catch(function(){}); else vid.pause();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        vid.currentTime = Math.min(vid.duration || 0, (vid.currentTime || 0) + 5);
+        updateBar();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        vid.currentTime = Math.max(0, (vid.currentTime || 0) - 5);
+        updateBar();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        body.querySelector('#mediaFs').click();
+      }
+    });
+    /* focus so arrows work when window is focused */
+    body.tabIndex = 0;
+    body.style.outline = 'none';
+    setTimeout(function() { try { body.focus(); } catch (e) {} }, 50);
+
     body.querySelector('#mediaFile').onchange = function(e) {
       const f = e.target.files && e.target.files[0];
       if (!f) return;
       const url = URL.createObjectURL(f);
       vid.src = url;
       empty.style.display = 'none';
+      bar.style.display = 'flex';
       vid.play().catch(function(){});
+      body.focus();
     };
     if (window.__VOS_MEDIA_SRC) {
       vid.src = window.__VOS_MEDIA_SRC;
       empty.style.display = 'none';
+      bar.style.display = 'flex';
       window.__VOS_MEDIA_SRC = null;
     }
   }
